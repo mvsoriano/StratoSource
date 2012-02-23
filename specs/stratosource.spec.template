@@ -59,6 +59,8 @@ if [ $? -eq 1 ]; then
 fi
 
 echo 'configure mysql'
+# fix a bug in the mysql rpm installer that does not set correct permissions
+chown -R mysql.mysql /var/lib/mysql
 mysql_install_db
 
 echo 'configuring cgit'
