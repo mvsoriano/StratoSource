@@ -2,7 +2,7 @@
 
 Name:           stratosource
 Version: 2.6.2
-Release: 1
+Release: 2
 Summary:        Process git repo dumps of salesforce assets and provide web UI for the results
 
 Group:          Applications/Internet
@@ -59,6 +59,8 @@ if [ $? -eq 1 ]; then
 fi
 
 echo 'configure mysql'
+# fix a bug in the mysql rpm installer that does not set correct permissions
+chown -R mysql.mysql /var/lib/mysql
 mysql_install_db
 
 echo 'configuring cgit'
