@@ -15,6 +15,8 @@
 #    You should have received a copy of the GNU General Public License
 #    along with StratoSource.  If not, see <http://www.gnu.org/licenses/>.
 #    
+import logging
+import logging.config
 from django.core.management.base import BaseCommand, CommandError
 from django.core.exceptions import ObjectDoesNotExist
 from stratosource.admin.models import Story, Branch, DeployableObject
@@ -31,9 +33,12 @@ __date__ ="$Sep 22, 2010 2:11:52 PM$"
 typeMap = {'fields': 'CustomField','validationRules': 'ValidationRule',
            'listViews': 'ListView','namedFilters': 'NamedFilter',
            'searchLayouts': 'SearchLayout','recordTypes': 'RecordType',
-           'objects': 'CustomObject'}
+           'objects': 'CustomObject', 'classes' : 'ApexClass', 'labels' : 'CustomLabel',
+           'triggers': 'ApexTrigger',
+            'pages': 'ApexPage', 'weblinks': 'CustomPageWebLink',
+            'components': 'ApexComponent'}
 SF_NAMESPACE='{http://soap.sforce.com/2006/04/metadata}'
-_API_VERSION = "23.0"
+_API_VERSION = "24.0"
 
 
 def createFileCache(map):
@@ -75,7 +80,7 @@ def findXmlNode(doc, object):
     for child in children:
         node = child.find(nameKey)
         if node is not None:
-            return etree.tostring(node)
+            return etree.tostring(child)
     return None
 
 #
@@ -110,18 +115,8 @@ def findXmlSubnode(doc, object):
     return None
 
 def generateObjectChanges(packageNode, destructiveNode, cache, object):
-
-    fragment = []
-    if object.status == 'd':
-        destructiveTypesEl = etree.SubElement(destructiveNode, 'types')
-        object_name = object.filename[:-(len(object.el_type) + 1)]
-        member = '.'.join([object_name, object.el_name ])
-        etree.SubElement(destructiveTypesEl, 'members').text = member
-        etree.SubElement(destructiveTypesEl, 'name').text = typeMap[object.type]
-        return fragment
-
+    if object.status == 'd': return None
     doc = etree.XML(cache[object.filename])
-
     if object.el_name.find(':') >= 0:
         # recordType node
         xml = findXmlSubnode(doc, object)
@@ -130,27 +125,41 @@ def generateObjectChanges(packageNode, destructiveNode, cache, object):
 
     if not xml:
         print "Did not find XML node for %s.%s.%s.%s" % (object.filename,object.el_type,object.el_name,object.el_subtype)
-    else:
-        fragment.append(xml)
-    return fragment
+        return None
+    return xml
 
 
 def getMetaForFile(filename):
     with file(filename+'-meta.xml') as f:
         return f.read()
 
-    
+def buildCustomObjectDefinition(filepath, itemlist):
+    # break into submap of objects and fields
+    m = {}
+    for item in itemlist:
+        if not m.has_key(item.filename): m[item.filename] = []
+        m[item.filename].append(m.el_name)
+    for objname,fieldlist in m.items():
+        doc = etree.XML(cache[objname])
+        # make a list of existing fields from the object
+        existingfields = []
+
+def hasDuplicate(objectlist, obj):
+    for o in objectlist:
+        if o.el_name == obj.el_name and o.filename == obj.filename:
+            logger = logging.getLogger('deploy')
+            logger.info('Rejected duplicate ' + obj.filename + '/' + obj.el_name)
+            return True
+    return False
+
 def generatePackage(objectList, from_branch, to_branch):
-    typemap = { 'classes' : 'ApexClass', 'labels' : 'CustomLabel',
-                'objects': 'CustomObject', 'triggers': 'ApexTrigger',
-                'pages': 'ApexPage', 'weblinks': 'CustomPageWebLink',
-                'components': 'ApexComponent' }
+    logger = logging.getLogger('deploy')
 
     defaultNS = { None: 'http://soap.sforce.com/2006/04/metadata'}
-    doc = etree.Element('Package', nsmap=defaultNS)
+    doc = etree.Element('Package') #, nsmap=defaultNS)
     etree.SubElement(doc, 'version').text = "{0}".format(_API_VERSION)
 
-    destructive = etree.Element('Package', nsmap=defaultNS)
+    destructive = etree.Element('Package') #, nsmap=defaultNS)
     etree.SubElement(destructive, 'version').text = "{0}".format(_API_VERSION)
 
     output_name = '/tmp/deploy_%s_%s.zip' % (from_branch.name, to_branch.name)
@@ -160,66 +169,51 @@ def generatePackage(objectList, from_branch, to_branch):
     map = {}
     for object in objectList:
         if not map.has_key(object.type): map[object.type] = []
-        map[object.type].append(object)
+        objectlist = map[object.type]
+        if not hasDuplicate(objectlist, object): objectlist.append(object)
     cache = createFileCache(map)
+    
+    objectPkgMap = {}   # holds all nodes to be added/updated, keyed by object/file name
 
     for type,itemlist in map.items():
-        if not typemap.has_key(type):
+        if not typeMap.has_key(type):
             print '** Unhandled type {0} - skipped'.format(type)
             continue
 
         print 'PROCESSING TYPE ' + type
 
         if type == 'objects':
-            objectxml = '<?xml version="1.0" encoding="UTF-8"?>'\
-                        '<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">'
+            #
+            # For objects we need to collect a list of all field/list/recordtype/et.al changes
+            # then process them at the end
+            #
             for object in itemlist:
-                if object.el_name is None:
-                    ##
-                    # entire object is new, handle differently
-                    ##
-                    myzip.writestr('objects/'+object.filename, cache.get(object.filename))
-                    typesEl = etree.SubElement(doc, 'types')
-                    etree.SubElement(typesEl, 'members').text = '*'
-                    etree.SubElement(typesEl, 'name').text = typemap[type]
+                if object.status == 'd':
+                    registerChange(destructive, object, type)
                 else:
-                    ##
-                    # exists in both hashes, so compare for changes
-                    ##
-                    fragments = generateObjectChanges(doc, destructive, cache, object)
-                    objectxml += '\n'.join(fragments)
-                    objectxml += '</CustomObject>'
-                    myzip.writestr('objects/'+object.filename, objectxml)
+                    if not objectPkgMap.has_key(object.filename): objectPkgMap[object.filename] = []
+                    changes = objectPkgMap[object.filename]
+                    registerChange(doc, object, type);
+                    if object.el_name is None:
+                        pass
+                    else:
+                        ##
+                        # exists in both hashes, so compare for changes
+                        ##
+                        fragments = generateObjectChanges(doc, destructive, cache, object)
+                        changes.append(fragments)
         elif type == 'labels':
-            objectxml = ''
-            for objectName in itemlist:
-                fragments = generateObjectChanges(doc, destructive, lFileCache, rFileCache, itemlist, 'labels', 'CustomLabel')
-                myzip.writestr('labels/'+objectName, objectxml)
-        else:
-            typesEl = etree.SubElement(doc, 'types')
-            destructiveList = []
-            for member in itemlist:
-                print 'member filename=%s, el_type=%s' % (member.filename, member.el_type)
-                if member.filename.find('.') > 0:
-                    object_name = member.filename[0:member.filename.find('.')]
-#                object_name = member.filename[:-(len(member.el_type) + 1)]
-                ## !! assumes the right-side branch is still current in git !!
-                if os.path.isfile(os.path.join('unpackaged',type,member.filename)):
-                    myzip.writestr(type+'/'+member.filename, cache.get(member.filename))
-                    myzip.writestr(type+'/'+member.filename+'-meta.xml', getMetaForFile(os.path.join('unpackaged',type,member.filename)))
-                    etree.SubElement(typesEl, 'members').text = object_name
+            for obj in itemlist:
+                if object.status == 'd':
+                    registerChange(destructive, obj, type)
                 else:
-                    destructiveList.append(member)
+                    registerChange(doc, obj, type)
+                    fragments = generateObjectChanges(doc, destructive, lFileCache, rFileCache, itemlist, 'labels', 'CustomLabel')
+                    writeLabelDefinitions(obj.filename, fragments, myzip)
+        elif type in ['pages','classes','triggers']:
+            writeFileDefinitions(doc, destructive, type, itemlist, cache, myzip)
 
-            etree.SubElement(typesEl, 'name').text = typemap[type]
-            if len(destructiveList):
-                destructiveTypesEl = etree.SubElement(destructive, 'types')
-                for member in destructiveList:
-                    if member.filename.find('.') > 0:
-                        object_name = member.filename[0:member.filename.find('.')]
-#                    object_name = member.filename[:-(len(member.el_type) + 1)]
-                    etree.SubElement(destructiveTypesEl, 'members').text = object_name;
-                etree.SubElement(destructiveTypesEl, 'name').text = typemap[type]
+    writeObjectDefinitions(objectPkgMap, cache, myzip)
 
     xml = etree.tostring(doc, xml_declaration=True, encoding='UTF-8', pretty_print=True)
     myzip.writestr('package.xml', xml)
@@ -229,6 +223,58 @@ def generatePackage(objectList, from_branch, to_branch):
     myzip.close()
     return output_name
 
+#
+# register an item to the package.xml or destructive.xml document
+#
+def registerChange(doc, member, filetype):
+    el = etree.SubElement(doc, 'types')
+    object_name = member.filename[0:member.filename.find('.')]
+    if member.el_name is None:
+        etree.SubElement(el, 'members').text = object_name
+    else:
+        el_name = member.el_name
+        if filetype == 'objects':
+            if el_name.find(':') > 0:
+                el_name = el_name.split(':')[0]
+                filetype = 'recordTypes'
+            else:
+                filetype = 'fields'
+        etree.SubElement(el, 'members').text = object_name + '.' + el_name
+        etree.SubElement(el, 'name').text = typeMap[filetype]
+
+
+def writeFileDefinitions(packageDoc, destructiveDoc, filetype, filelist, cache, zipfile):
+    for member in filelist:
+        print 'member filename=%s, el_type=%s' % (member.filename, member.el_type)
+        if member.filename.find('.') > 0:
+            object_name = member.filename[0:member.filename.find('.')]
+#                object_name = member.filename[:-(len(member.el_type) + 1)]
+        ## !! assumes the right-side branch is still current in git !!
+        if os.path.isfile(os.path.join('unpackaged',filetype,member.filename)):
+            zipfile.writestr(filetype+'/'+member.filename, cache.get(member.filename))
+            zipfile.writestr(filetype+'/'+member.filename+'-meta.xml', getMetaForFile(os.path.join('unpackaged',filetype,member.filename)))
+            registerChange(packageDoc, member, filetype)
+        else:
+            registerChange(destructiveDoc, member, filetype)
+
+def writeLabelDefinitions(filename, elementList, zipfile):
+    xml = '<?xml version="1.0" encoding="UTF-8"?>'\
+            '<CustomLabels xmlns="http://soap.sforce.com/2006/04/metadata">'
+    xml += '\n'.join(elementList)
+    xml += '</CustomLabels>'
+    myzip.writestr('labels/'+filename, xml)
+
+def writeObjectDefinitions(objectMap, filecache, zipfile):
+    for objectName in objectMap.keys():
+        elementList = objectMap[objectName]
+        if len(elementList) == 0:
+            objectxml = cache.get(objectName)
+        else:
+            objectxml = '<?xml version="1.0" encoding="UTF-8"?>'\
+                            '<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">'
+            objectxml += '\n'.join(elementList)
+            objectxml += '</CustomObject>'
+        zipfile.writestr('objects/'+objectName, objectxml)
 
 class Command(BaseCommand):
 
@@ -236,8 +282,8 @@ class Command(BaseCommand):
         for object in objectList:
             print object.status, object.filename, object.type, object.el_name, object.el_subtype
         output_name = generatePackage(objectList, from_branch, to_branch)
-        agent = Utils.getAgentForBranch(to_branch);
-        agent.deploy(output_name)
+        #agent = Utils.getAgentForBranch(to_branch);
+        #agent.deploy(output_name)
 
     def deploy_story(self, story, from_branch, to_branch):
         # get all release objects associated with our story
@@ -246,7 +292,6 @@ class Command(BaseCommand):
         self.deploy(set(rolist), from_branch, to_branch)
 
     def handle(self, *args, **options):
-
         if len(args) < 6: raise CommandError('usage: deploy <source repo> <source branch> <dest repo> <dest branch> story <storyid>')
 
         if args[4] == 'story':
