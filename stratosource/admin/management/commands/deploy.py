@@ -25,6 +25,7 @@ import subprocess
 import os
 from zipfile import ZipFile
 from lxml import etree
+import admin.management.CSBase # used to initialize logging
 
 
 __author__="masmith"
@@ -63,6 +64,7 @@ def createFileCache(map):
     return cache
 
 def findXmlNode(doc, object):
+
     if object.type == 'objectTranslation':
         nodeName = SF_NAMESPACE + 'fields'
         nameKey = SF_NAMESPACE + 'name'
@@ -72,6 +74,9 @@ def findXmlNode(doc, object):
     elif object.type == 'translationChange':
         nodeName = SF_NAMESPACE + 'fields'
         nameKey = SF_NAMESPACE + 'name'
+    elif object.el_type == 'listViews':
+        nodeName = SF_NAMESPACE + 'listViews'
+        nameKey = SF_NAMESPACE + 'fullName'
     else:
         nodeName = SF_NAMESPACE + 'fields'
         nameKey = SF_NAMESPACE + 'fullName'
@@ -79,7 +84,9 @@ def findXmlNode(doc, object):
     children = doc.findall(nodeName)
     for child in children:
         node = child.find(nameKey)
-        if node is not None:
+        #print 'el_name=' + object.el_name
+        #print 'node name=' + node.text
+        if node is not None and node.text == object.el_name:
             return etree.tostring(child)
     return None
 
@@ -89,34 +96,36 @@ def findXmlNode(doc, object):
 def findXmlSubnode(doc, object):
     if object.type == 'objects':
         node_names = object.el_name.split(':')
-        print '>>> node_names[0] = %s, node_names[1] = %s' % (node_names[0], node_names[1])
-        print '>>> subtype=' + object.el_subtype
+#        print '>>> node_names[0] = %s, node_names[1] = %s' % (node_names[0], node_names[1])
+#        print '>>> subtype=' + object.el_subtype
         children = doc.findall(SF_NAMESPACE + object.el_type)
-        print '>>> looking for ' + object.el_type
+#        print '>>> looking for ' + object.el_type
         for child in children:
-            print '>>> processing child'
+#            print '>>> processing child'
             node = child.find(SF_NAMESPACE + 'fullName')
             if node is not None:
-                print '>>> processing node ' + node.text
-                print '>>> comparing [%s] to [%s]' % (node.text, node_names[0])
+#                print '>>> processing node ' + node.text
+#                print '>>> comparing [%s] to [%s]' % (node.text, node_names[0])
                 if node.text == node_names[0]:
                     if object.el_subtype == 'picklists':
                         plvalues = child.findall(SF_NAMESPACE + 'picklistValues')
                         for plvalue in plvalues:
-                            print '>>> processing plvalue'
+#                            print '>>> processing plvalue'
                             if plvalue.find(SF_NAMESPACE + 'picklist').text == node_names[1]:
-                                print '>>> plvalue found'
+#                                print '>>> plvalue found'
                                 #
                                 # due to difficulty we have to return everything from the root node
                                 #
                                 return etree.tostring(child)
     else:
-        print 'Unknown object type: ' + object.type
+        
+        logging.getLogger('deploy').info('Unknown object type: ' + object.type)
     return None
 
 def generateObjectChanges(packageNode, destructiveNode, cache, object):
     if object.status == 'd': return None
     doc = etree.XML(cache[object.filename])
+#    print 'looking for %s' % object.el_name
     if object.el_name.find(':') >= 0:
         # recordType node
         xml = findXmlSubnode(doc, object)
@@ -124,8 +133,9 @@ def generateObjectChanges(packageNode, destructiveNode, cache, object):
         xml = findXmlNode(doc, object)
 
     if not xml:
-        print "Did not find XML node for %s.%s.%s.%s" % (object.filename,object.el_type,object.el_name,object.el_subtype)
+        logging.getLogger('deploy').info("Did not find XML node for %s.%s.%s.%s" % (object.filename,object.el_type,object.el_name,object.el_subtype))
         return None
+        
     return xml
 
 
@@ -146,7 +156,7 @@ def buildCustomObjectDefinition(filepath, itemlist):
 
 def hasDuplicate(objectlist, obj):
     for o in objectlist:
-        if o.el_name == obj.el_name and o.filename == obj.filename:
+        if o.el_name == obj.el_name and o.el_subtype == obj.el_subtype and o.filename == obj.filename:
             logger = logging.getLogger('deploy')
             logger.info('Rejected duplicate ' + obj.filename + '/' + obj.el_name)
             return True
@@ -165,6 +175,7 @@ def generatePackage(objectList, from_branch, to_branch):
     output_name = '/tmp/deploy_%s_%s.zip' % (from_branch.name, to_branch.name)
     myzip = ZipFile(output_name, 'w')
 
+    logger.info('building %s', output_name)
     # create map and group by type
     map = {}
     for object in objectList:
@@ -177,10 +188,10 @@ def generatePackage(objectList, from_branch, to_branch):
 
     for type,itemlist in map.items():
         if not typeMap.has_key(type):
-            print '** Unhandled type {0} - skipped'.format(type)
+            logger.error('** Unhandled type {0} - skipped'.format(type))
             continue
 
-        print 'PROCESSING TYPE ' + type
+        logger.info('PROCESSING TYPE %s', type)
 
         if type == 'objects':
             #
@@ -190,6 +201,7 @@ def generatePackage(objectList, from_branch, to_branch):
             for object in itemlist:
                 if object.status == 'd':
                     registerChange(destructive, object, type)
+                    logger.info('removing: %s %s %s', object.filename, object.el_name, object.el_subtype)
                 else:
                     if not objectPkgMap.has_key(object.filename): objectPkgMap[object.filename] = []
                     changes = objectPkgMap[object.filename]
@@ -206,6 +218,7 @@ def generatePackage(objectList, from_branch, to_branch):
             for obj in itemlist:
                 if object.status == 'd':
                     registerChange(destructive, obj, type)
+                    logger.info('removing: %s %s', object.filename, object.el_name)
                 else:
                     registerChange(doc, obj, type)
                     fragment = generateObjectChanges(doc, destructive, cache, obj)
@@ -227,10 +240,14 @@ def generatePackage(objectList, from_branch, to_branch):
 # register an item to the package.xml or destructive.xml document
 #
 def registerChange(doc, member, filetype):
+    logger = logging.getLogger('deploy')
+
     el = etree.SubElement(doc, 'types')
     object_name = member.filename[0:member.filename.find('.')]
     if member.el_name is None:
         etree.SubElement(el, 'members').text = object_name
+        etree.SubElement(el, 'name').text = typeMap[filetype]
+        logger.info('registering: %s', object_name)
     else:
         el_name = member.el_name
         if filetype == 'objects':
@@ -241,9 +258,11 @@ def registerChange(doc, member, filetype):
                 filetype = 'fields'
         etree.SubElement(el, 'members').text = object_name + '.' + el_name
         etree.SubElement(el, 'name').text = typeMap[filetype]
+        logger.info('registering: %s - %s', object_name + '.' + el_name, typeMap[filetype])
 
 
 def writeFileDefinitions(packageDoc, destructiveDoc, filetype, filelist, cache, zipfile):
+    logger = logging.getLogger('deploy')
     for member in filelist:
         print 'member filename=%s, el_type=%s' % (member.filename, member.el_type)
         if member.filename.find('.') > 0:
@@ -254,7 +273,9 @@ def writeFileDefinitions(packageDoc, destructiveDoc, filetype, filelist, cache, 
             zipfile.writestr(filetype+'/'+member.filename, cache.get(member.filename))
             zipfile.writestr(filetype+'/'+member.filename+'-meta.xml', getMetaForFile(os.path.join('unpackaged',filetype,member.filename)))
             registerChange(packageDoc, member, filetype)
+            logger.info('storing: %s', member.filename)
         else:
+            logger.info('removing: %s', member.filename)
             registerChange(destructiveDoc, member, filetype)
 
 def writeLabelDefinitions(filename, element, zipfile):
@@ -282,14 +303,24 @@ class Command(BaseCommand):
         for object in objectList:
             print object.status, object.filename, object.type, object.el_name, object.el_subtype
         output_name = generatePackage(objectList, from_branch, to_branch)
-        #agent = Utils.getAgentForBranch(to_branch);
-        #agent.deploy(output_name)
+        agent = Utils.getAgentForBranch(to_branch, logger=logging.getLogger('deploy'));
+        return agent.deploy(output_name)
 
-    def deploy_story(self, story, from_branch, to_branch):
+    def deploy_story(self, stories, from_branch, to_branch):
         # get all release objects associated with our story
-        rolist = DeployableObject.objects.filter(pending_stories=story)
+        logger = logging.getLogger('deploy')
+        rolist = DeployableObject.objects.filter(pending_stories__in=stories)
         resetLocalRepo(from_branch.name)
-        self.deploy(set(rolist), from_branch, to_branch)
+        deployResult = self.deploy(set(rolist), from_branch, to_branch)
+        if deployResult is not None:
+            if not deployResult.success:
+                for dm in deployResult.messages:
+                    if not dm.success:
+                        logger.info('fail: {0} - {1} - {2}'.format(dm.fileName, dm.fullName, dm.problem))
+                    else:
+                        logger.info('pass: {0} - {1}'.format(dm.fileName, dm.fullName))
+            raise CommandError('deployment failed')
+
 
     def handle(self, *args, **options):
         if len(args) < 6: raise CommandError('usage: deploy <source repo> <source branch> <dest repo> <dest branch> story <storyid>')
@@ -302,7 +333,7 @@ class Command(BaseCommand):
             to_branch = Branch.objects.get(repo__name__exact=args[2], name__exact=args[3])
             if not to_branch: raise CommandException("invalid destination branch")
             os.chdir(from_branch.repo.location)
-            self.deploy_story(story, from_branch, to_branch)
+            self.deploy_story([story], from_branch, to_branch)
 
 
 

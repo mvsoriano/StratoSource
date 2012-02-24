@@ -242,6 +242,7 @@ def createFileCache(hash, map, branch_name):
     tmpbranch = branch_name + '_sfdiff'
     subprocess.check_call(["git","checkout",branch_name])
     if branchExists(tmpbranch):
+        logger.debug('removing temp branch')
         subprocess.check_call(["git","branch","-D",tmpbranch])
     subprocess.check_call(["git","checkout","-b",tmpbranch, branch_name])
     os.system('git reset --hard {0}'.format(hash))

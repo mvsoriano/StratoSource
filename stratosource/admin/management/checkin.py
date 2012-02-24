@@ -48,11 +48,11 @@ SFAPIAssetMap = {
 
 def perform_checkin(repodir, zipfile, branch):
 
-    LOG = repodir + '/../checkin.log'
+#    LOG = repodir + '/../checkin.log'
 
     os.chdir(repodir)
 
-    logging.basicConfig(filename=os.path.join('../checkin.log'), format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+#    logging.basicConfig(filename=os.path.join('../checkin.log'), format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     log = logging.getLogger('checkin')
     log.setLevel(logging.DEBUG)
 

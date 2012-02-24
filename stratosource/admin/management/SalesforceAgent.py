@@ -25,6 +25,8 @@ import logging
 import httplib, urllib
 import json
 from urlparse import urlparse
+import admin.management.CSBase # used to initialize logging
+
 
 __author__="mark"
 __date__ ="$Aug 15, 2010 9:48:38 PM$"
@@ -52,8 +54,8 @@ class SalesforceAgent:
 
     def __init__(self, partner_wsdl_url, metadata_wsdl_url = None, clientLogger = None):
         if clientLogger is None:
-            logging.basicConfig(level=logging.DEBUG)
-            self.logname = _DEFAULT_LOGNAME
+#            logging.basicConfig(level=logging.DEBUG)
+#            self.logname = _DEFAULT_LOGNAME
             self.logger = logging.getLogger(__file__)
         else:
             self.logger = clientLogger
@@ -316,8 +318,7 @@ class SalesforceAgent:
         if result.state != 'Completed':
             raise Exception(result.message)
         deployResult = self.meta.service.checkDeployStatus(result.id)
-        if not deployResult.success:
-            raise Exception('Deployment failed')
+        return deployResult
 
 
 if __name__ == "__main__":
