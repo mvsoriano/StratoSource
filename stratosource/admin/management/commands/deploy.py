@@ -68,7 +68,7 @@ def findXmlNode(doc, object):
         nameKey = SF_NAMESPACE + 'name'
     if object.type == 'labels':
         nodeName = SF_NAMESPACE + 'labels'
-        nameKey = SF_NAMESPACE + 'name'
+        nameKey = SF_NAMESPACE + 'fullName'
     elif object.type == 'translationChange':
         nodeName = SF_NAMESPACE + 'fields'
         nameKey = SF_NAMESPACE + 'name'
@@ -200,16 +200,16 @@ def generatePackage(objectList, from_branch, to_branch):
                         ##
                         # exists in both hashes, so compare for changes
                         ##
-                        fragments = generateObjectChanges(doc, destructive, cache, object)
-                        changes.append(fragments)
+                        fragment = generateObjectChanges(doc, destructive, cache, object)
+                        changes.append(fragment)
         elif type == 'labels':
             for obj in itemlist:
                 if object.status == 'd':
                     registerChange(destructive, obj, type)
                 else:
                     registerChange(doc, obj, type)
-                    fragments = generateObjectChanges(doc, destructive, lFileCache, rFileCache, itemlist, 'labels', 'CustomLabel')
-                    writeLabelDefinitions(obj.filename, fragments, myzip)
+                    fragment = generateObjectChanges(doc, destructive, cache, obj)
+                    writeLabelDefinitions(obj.filename, fragment, myzip)
         elif type in ['pages','classes','triggers']:
             writeFileDefinitions(doc, destructive, type, itemlist, cache, myzip)
 
@@ -257,12 +257,12 @@ def writeFileDefinitions(packageDoc, destructiveDoc, filetype, filelist, cache, 
         else:
             registerChange(destructiveDoc, member, filetype)
 
-def writeLabelDefinitions(filename, elementList, zipfile):
+def writeLabelDefinitions(filename, element, zipfile):
     xml = '<?xml version="1.0" encoding="UTF-8"?>'\
             '<CustomLabels xmlns="http://soap.sforce.com/2006/04/metadata">'
-    xml += '\n'.join(elementList)
+    xml += element
     xml += '</CustomLabels>'
-    myzip.writestr('labels/'+filename, xml)
+    zipfile.writestr('labels/'+filename, xml)
 
 def writeObjectDefinitions(objectMap, filecache, zipfile):
     for objectName in objectMap.keys():

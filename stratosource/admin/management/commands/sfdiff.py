@@ -8,7 +8,7 @@
 #    (at your option) any later version.
 #
 #    StratoSource is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    but WITHOUT ANY WARRANTY; without even the implied waarranty of
 #    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #    GNU General Public License for more details.
 #
@@ -219,7 +219,7 @@ def getAllFullNames(doc, elementName, tagname='fullName'):
         allnames = []
         for node in nodes:
             el = node.find(fqfullname)
-            if el: allnames.append(el.text)
+            if el is not None: allnames.append(el.text)
 #        allnames = [node.find(fqfullname).text for node in nodes]
         return allnames
     else:
@@ -296,6 +296,8 @@ def insertDeltas(commit, objectName, type, items, delta_type, el_type, el_subtyp
 
 def getLastChange(objectName, el_type, el_name):
     fullName = objectName
+    if el_type == 'labels': return None # not doing audit tracking for labels
+
     if el_type == 'fields': el_type = 'object'
 
     parts = objectName.split('.')
@@ -628,7 +630,8 @@ def analyzeCommit(branch, commit):
                 if delta.user_change is None:
                     print '** Audit record not found for %s' % listitem
                 else:
-                    print 'audit record found!'
+                    #print 'audit record found!'
+                    pass
                 delta.delta_type = delta_type
                 delta.save()
 
