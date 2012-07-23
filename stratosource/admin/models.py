@@ -131,7 +131,7 @@ class ReleaseTask(models.Model):
     name =           models.CharField(max_length=1000)
     done_in_branch = models.CharField(max_length=100)
     order =          models.IntegerField(default=0)
-    release =        models.ForeignKey(Release, db_index=True)
+    release =        models.ForeignKey(Release, db_index=True)  
 
 class DeployableObject(models.Model):
     STATUS_TYPES = (('a','Active'),('d','Deleted'))
@@ -154,6 +154,23 @@ class DeployableObject(models.Model):
         if not self.el_type is None: s = s + " - " + self.el_type
         if not self.el_name is None: s = s + " - " + self.el_name
         return s 
+
+class DeploymentPushStatus(models.Model):
+    RESULT_TYPES = (('n','New'),('i','In Progress'),('s','Successful'),('f','Failed'))
+
+    date_attempted =   models.DateField(blank=True,null=True)
+    log_output =       models.CharField(max_length=20000)
+    result =           models.CharField(max_length=1, choices=RESULT_TYPES, default='n')
+    test_only =        models.BooleanField(default=True)
+    keep_package =     models.BooleanField(default=False)
+    package_location = models.CharField(max_length=200, null=True)
+
+class DeploymentPackage(models.Model):
+    name =               models.CharField(max_length=1000)
+    release =            models.ForeignKey(Release, db_index=True)
+    source_environment = models.ForeignKey(Branch, null=False, related_name='to_deployment_packages')
+    target_environment = models.ForeignKey(Branch, null=False, related_name='from_deployment_packages')
+    deployable_objects = models.ManyToManyField(DeployableObject,null=True)
 
 class SalesforceUser(models.Model):
     userid      = models.CharField(max_length=20, blank=False, null=False)
