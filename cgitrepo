@@ -1,8 +1,0 @@
-#ID=22
-repo.url=qa
-repo.path=/home/jkruger/source/.git
-repo.desc=qa
-#ID=23
-repo.url=fte1
-repo.path=/var/sfrepo/fte1/code//.git
-repo.desc=fte1
