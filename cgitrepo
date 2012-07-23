@@ -6,3 +6,7 @@ repo.desc=qa
 repo.url=fte1
 repo.path=/home/masmith/sfrepo/.git
 repo.desc=fte1
+#ID=1
+repo.url=fte1
+repo.path=/var/sfrepo/fte1/code//.git
+repo.desc=fte1
