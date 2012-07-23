@@ -339,8 +339,7 @@ def branch_form_action(request):
                 br = Branch.objects.get(id=branchid)
                 removeCrontab(br)
                 removeCGitEntry(br)
-                branchCascadeDelete(br[0])
-                br.delete()
+                branchCascadeDelete(br)
     if request.method == 'POST' and request.POST.__contains__('addBranchButton'):
         return redirect('/newbranch')
 

@@ -7,7 +7,7 @@
 #    the Free Software Foundation, either version 3 of the License, or
 #    (at your option) any later version.
 #
-#    StratoSource is distributed in the hope that it will be useful,
+#    StratoSource is distributed in the hope that it will be useful.
 #    but WITHOUT ANY WARRANTY; without even the implied warranty of
 #    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #    GNU General Public License for more details.
@@ -122,7 +122,7 @@ def findXmlSubnode(doc, object):
         logging.getLogger('deploy').info('Unknown object type: ' + object.type)
     return None
 
-def generateObjectChanges(packageNode, destructiveNode, cache, object):
+def generateObjectChanges(doc,  cache, object):
     if object.status == 'd': return None
     doc = etree.XML(cache[object.filename])
 #    print 'looking for %s' % object.el_name
@@ -180,8 +180,8 @@ def generatePackage(objectList, from_branch, to_branch):
     map = {}
     for object in objectList:
         if not map.has_key(object.type): map[object.type] = []
-        objectlist = map[object.type]
-        if not hasDuplicate(objectlist, object): objectlist.append(object)
+        olist = map[object.type]
+        if not hasDuplicate(olist, object): olist.append(object)
     cache = createFileCache(map)
     
     objectPkgMap = {}   # holds all nodes to be added/updated, keyed by object/file name
@@ -209,10 +209,7 @@ def generatePackage(objectList, from_branch, to_branch):
                     if object.el_name is None:
                         pass
                     else:
-                        ##
-                        # exists in both hashes, so compare for changes
-                        ##
-                        fragment = generateObjectChanges(doc, destructive, cache, object)
+                        fragment = generateObjectChanges(doc, cache, object)
                         changes.append(fragment)
         elif type == 'labels':
             for obj in itemlist:
@@ -221,7 +218,7 @@ def generatePackage(objectList, from_branch, to_branch):
                     logger.info('removing: %s %s', object.filename, object.el_name)
                 else:
                     registerChange(doc, obj, type)
-                    fragment = generateObjectChanges(doc, destructive, cache, obj)
+                    fragment = generateObjectChanges(doc, cache, obj)
                     writeLabelDefinitions(obj.filename, fragment, myzip)
         elif type in ['pages','classes','triggers']:
             writeFileDefinitions(doc, destructive, type, itemlist, cache, myzip)
@@ -306,7 +303,7 @@ class Command(BaseCommand):
         agent = Utils.getAgentForBranch(to_branch, logger=logging.getLogger('deploy'));
         return agent.deploy(output_name)
 
-    def deploy_story(self, stories, from_branch, to_branch):
+    def deploy_stories(self, stories, from_branch, to_branch):
         # get all release objects associated with our story
         logger = logging.getLogger('deploy')
         rolist = DeployableObject.objects.filter(pending_stories__in=stories)
@@ -333,7 +330,7 @@ class Command(BaseCommand):
             to_branch = Branch.objects.get(repo__name__exact=args[2], name__exact=args[3])
             if not to_branch: raise CommandException("invalid destination branch")
             os.chdir(from_branch.repo.location)
-            self.deploy_story([story], from_branch, to_branch)
+            self.deploy_stories([story], from_branch, to_branch)
 
 
 
