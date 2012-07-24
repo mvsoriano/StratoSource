@@ -22,7 +22,7 @@ from django.utils.encoding import smart_str
 import re
 from django.template import RequestContext
 from django.shortcuts import render_to_response, redirect
-from stratosource.admin.models import Story, Release, ReleaseTask, DeployableObject, DeployableTranslation, Delta, Branch, ConfigSetting, UserChange, SalesforceUser
+from stratosource.admin.models import DeploymentPackage, Story, Release, ReleaseTask, DeployableObject, DeployableTranslation, Delta, Branch, ConfigSetting, UserChange, SalesforceUser
 from stratosource.user import rallyintegration
 from stratosource.admin.management import ConfigCache
 import logging
@@ -88,6 +88,31 @@ def home(request):
     data = {'branches': Branch.objects.all()}
     return render_to_response('home.html', data, context_instance=RequestContext(request))
 
+def create_release_package(request, release_id):
+    release = Release.objects.get(id=release_id)
+    data = {'release': release}
+
+    if request.method == u'POST':
+        release_package = DeploymentPackage()
+        release_package.release = release                
+        
+    if request.method == u'GET':
+
+        manifest = []
+        for story in release.stories.all():
+            deployables = DeployableObject.objects.filter(pending_stories=story)
+            dep_objects = DeployableObject.objects.filter(released_stories=story)
+            deployables.select_related()
+            dep_objects.select_related()
+            manifest += list(deployables)
+            manifest += list(dep_objects)
+
+            manifest.sort(key=lambda object: object.type+object.filename)
+            branches = Branch.objects.all()
+    
+            data = {'release': release, 'manifest': manifest, 'branches': branches}
+    
+    return render_to_response('release_create_package.html', data, context_instance=RequestContext(request))
 
 def manifest(request, release_id):
     release = Release.objects.get(id=release_id)
