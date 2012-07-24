@@ -178,6 +178,7 @@ def ignoretranslation(request, trans_id):
     json = simplejson.dumps(results)
     return HttpResponse(json, mimetype='application/json')
 
+@transaction.commit_on_success
 def ignoreselected(request):
     results = {'success':False}
 

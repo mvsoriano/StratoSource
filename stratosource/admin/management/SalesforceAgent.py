@@ -94,10 +94,10 @@ class SalesforceAgent:
     def close(self):
         if not self.login_result:
             raise Exception('Initialization error: not logged in')
-	#
-	# try to avoid timeouts by not logging out, which invalidates shared session of other
- 	# jobs using the same salesforce api credentials.
-	#
+    #
+    # try to avoid timeouts by not logging out, which invalidates shared session of other
+    # jobs using the same salesforce api credentials.
+    #
 #        self.partner.service.logout()
         self.login_result = None
 
@@ -289,7 +289,7 @@ class SalesforceAgent:
         out.write(zip)
         out.close()
 
-    def deploy(self, zipfilename):
+    def deploy(self, zipfilename,  checkOnly = False):
         zipfile = file(zipfilename, 'rb')
         zip = zipfile.read()
         zipfile.close()
@@ -297,7 +297,7 @@ class SalesforceAgent:
         deploy_options = self.meta.factory.create('DeployOptions')
         deploy_options.allowMissingFiles = 'false'
         deploy_options.autoUpdatePackage = 'true'
-        deploy_options.checkOnly = 'false'
+        deploy_options.checkOnly = 'false' if checkOnly else 'true'
         deploy_options.ignoreWarnings = 'false'
         deploy_options.performRetrieve = 'false'
         deploy_options.purgeOnDelete = 'false'
