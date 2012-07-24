@@ -48,7 +48,7 @@ SFAPIAssetMap = {
 
 def perform_checkin(repodir, zipfile, branch):
 
-#    LOG = repodir + '/../checkin.log'
+    CMDLOG = repodir + '/../checkin.log'
 
     os.chdir(repodir)
 
@@ -63,13 +63,13 @@ def perform_checkin(repodir, zipfile, branch):
     log.info("branch " + branch.name)
 
     print 'checkout'
-    os.system('git reset --hard ' + branch.name + ' >>' + LOG)
+    os.system('git reset --hard ' + branch.name + ' >>' + CMDLOG)
 
     print 'checking deletes'
     log.info("Getting list of deleted files")
-    os.system('git reset --hard %s >> %s' % (branch.name, LOG))
+    os.system('git reset --hard %s >> %s' % (branch.name, CMDLOG))
     os.system('rm -rf %s/*' % repodir)
-    os.system('unzip -o -qq %s >> %s' % (zipfile, LOG))
+    os.system('unzip -o -qq %s >> %s' % (zipfile, CMDLOG))
 
     r,w = popen2.popen2("git status")
     rm_list = []
@@ -84,8 +84,8 @@ def perform_checkin(repodir, zipfile, branch):
     log.info("found %d file(s) to remove" % len(rm_list))
 
     log.info("Resetting repo back to HEAD")
-    os.system('git reset --hard %s >> %s' % (branch.name,LOG))
-    os.system('unzip -o -qq %s >> %s' % (zipfile,LOG))
+    os.system('git reset --hard %s >> %s' % (branch.name,CMDLOG))
+    os.system('unzip -o -qq %s >> %s' % (zipfile,CMDLOG))
 
     for name in rm_list:
         os.system('git rm "%s"' % name)
