@@ -93,8 +93,8 @@ def perform_checkin(repodir, zipfile, branch):
 
     log.info("Laying down changes")
 
-    os.system('git add * >> %s' % LOG)
-    os.system('git commit -m "incremental snapshot for %s on `date`" >> %s' % (branch.name, LOG))
+    os.system('git add * >> %s' % CMDLOG)
+    os.system('git commit -m "incremental snapshot for %s on `date`" >> %s' % (branch.name, CMDLOG))
 
 
     log.info("Completed checkin")
