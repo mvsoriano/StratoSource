@@ -37,7 +37,7 @@ typeMap = {'fields': 'CustomField','validationRules': 'ValidationRule',
             'pages': 'ApexPage', 'weblinks': 'CustomPageWebLink',
             'components': 'ApexComponent'}
 SF_NAMESPACE='{http://soap.sforce.com/2006/04/metadata}'
-_API_VERSION = "24.0"
+_API_VERSION = "23.0"
 
 
 def createFileCache(map):
@@ -120,21 +120,21 @@ def findXmlSubnode(doc, object):
         logging.getLogger('deploy').info('Unknown object type: ' + object.type)
     return None
 
-def generateObjectChanges(doc,  cache, object):
-    if object.status == 'd': return None
-    doc = etree.XML(cache[object.filename])
-#    print 'looking for %s' % object.el_name
-    if object.el_name.find(':') >= 0:
-        # recordType node
-        xml = findXmlSubnode(doc, object)
-    else:
-        xml = findXmlNode(doc, object)
-
-    if not xml:
-        logging.getLogger('deploy').info("Did not find XML node for %s.%s.%s.%s" % (object.filename,object.el_type,object.el_name,object.el_subtype))
-        return None
-        
-    return xml
+#def generateObjectChanges(doc,  cache, object):
+#    if object.status == 'd': return None
+#    doc = etree.XML(cache[object.filename])
+##    print 'looking for %s' % object.el_name
+#    if object.el_name.find(':') >= 0:
+#        # recordType node
+#        xml = findXmlSubnode(doc, object)
+#    else:
+#        xml = findXmlNode(doc, object)
+#
+#    if not xml:
+#        logging.getLogger('deploy').info("Did not find XML node for %s.%s.%s.%s" % (object.filename,object.el_type,object.el_name,object.el_subtype))
+#        return None
+#        
+#    return xml
 
 
 def getMetaForFile(filename):
@@ -206,12 +206,12 @@ def generatePackage(objectList, from_branch, to_branch,  retain_package,  packag
                 else:
                     if not objectPkgMap.has_key(object.filename): objectPkgMap[object.filename] = []
                     changes = objectPkgMap[object.filename]
-                    registerChange(doc, object, type);
-                    if object.el_name is None:
-                        pass
-                    else:
-                        fragment = generateObjectChanges(doc, cache, object)
-                        changes.append(fragment)
+                    registerChange(doc, object, type)
+#                    if object.el_name is None:
+#                        pass
+#                    else:
+#                        fragment = generateObjectChanges(doc, cache, object)
+#                        changes.append(fragment)
         elif type == 'labels':
             for obj in itemlist:
                 if object.status == 'd':
@@ -224,7 +224,7 @@ def generatePackage(objectList, from_branch, to_branch,  retain_package,  packag
         elif type in ['pages','classes','triggers']:
             writeFileDefinitions(doc, destructive, type, itemlist, cache, myzip)
 
-    writeObjectDefinitions(objectPkgMap, cache, myzip)
+    writeObjectDefinitions(doc,  objectPkgMap, cache, myzip)
 
     xml = etree.tostring(doc, xml_declaration=True, encoding='UTF-8', pretty_print=True)
     myzip.writestr('package.xml', xml)
@@ -258,7 +258,6 @@ def registerChange(doc, member, filetype):
         etree.SubElement(el, 'name').text = typeMap[filetype]
         logger.info('registering: %s - %s', object_name + '.' + el_name, typeMap[filetype])
 
-
 def writeFileDefinitions(packageDoc, destructiveDoc, filetype, filelist, cache, zipfile):
     logger = logging.getLogger('deploy')
     for member in filelist:
@@ -283,17 +282,28 @@ def writeLabelDefinitions(filename, element, zipfile):
     xml += '</CustomLabels>'
     zipfile.writestr('labels/'+filename, xml)
 
-def writeObjectDefinitions(objectMap, filecache, zipfile):
-    for objectName in objectMap.keys():
-        elementList = objectMap[objectName]
-        if len(elementList) == 0:
-            objectxml = cache.get(objectName)
-        else:
-            objectxml = '<?xml version="1.0" encoding="UTF-8"?>'\
-                            '<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">'
-            objectxml += '\n'.join(elementList)
-            objectxml += '</CustomObject>'
-        zipfile.writestr('objects/'+objectName, objectxml)
+def writeObjectDefinitions(doc,  objectMap, filecache, zipfile):
+    logger = logging.getLogger('deploy')
+
+    objdeflist = set(objectMap.keys())
+    for objdef in objdeflist:
+        object_name = objdef[0:objdef.find('.')]
+        zipfile.writestr('objects/' + objdef,  filecache.get(objdef))
+        el = etree.SubElement(doc, 'types')
+        etree.SubElement(el, 'members').text = object_name
+        etree.SubElement(el, 'name').text = typeMap['objects']
+        logger.info('registering: %s', objdef)
+ 
+#    for objectName in objectMap.keys():
+#        elementList = objectMap[objectName]
+#        if len(elementList) == 0:
+#            objectxml = filecache.get(objectName)
+#        else:
+#            objectxml = '<?xml version="1.0" encoding="UTF-8"?>'\
+#                            '<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">'
+#            objectxml += '\n'.join(elementList)
+#            objectxml += '</CustomObject>'
+#        zipfile.writestr('objects/'+objectName, objectxml)
         
 
 
@@ -311,8 +321,14 @@ def deploy(objectList, from_branch, to_branch,  testOnly = False,  retain_packag
     agent = Utils.getAgentForBranch(to_branch, logger=logging.getLogger('deploy'));
     results = agent.deploy(output_name,  testOnly)
     if not retain_package: os.unlink(output_name);
+    return results
 
-def deployPackage(deployPkg, pkgStatus,   to_branch):
+#
+# External entry point
+#
+
+def deployPackage(deployPkg, pkgStatus,  to_branch):
+
     results = deploy(   deployPkg.deployable_objects,  \
                                   deployPkg.source_environment,  \
                                   to_branch,  \

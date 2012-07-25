@@ -46,7 +46,7 @@ class Command(BaseCommand):
         # get all release objects associated with the stories
         logger = logging.getLogger('deploy')
         rolist = DeployableObject.objects.filter(pending_stories__in=stories)
-        deployResult = Deployment.deploy(set(rolist), from_branch, to_branch,  testOnly = True,  retain_package = True)
+        deployResult = Deployment.deploy(set(rolist), from_branch, to_branch,  testOnly = False,  retain_package = True)
         if deployResult is not None:
             if not deployResult.success:
                 for dm in deployResult.messages:
@@ -54,7 +54,7 @@ class Command(BaseCommand):
                         logger.info('fail: {0} - {1}'.format(dm.fullName, dm.problem))
                     else:
                         logger.info('pass: {0}'.format(dm.fullName))
-            raise CommandError('deployment failed')
+                raise CommandError('deployment failed')
 
 
     def handle(self, *args, **options):

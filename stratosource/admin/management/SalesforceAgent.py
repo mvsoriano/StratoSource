@@ -297,14 +297,14 @@ class SalesforceAgent:
         deploy_options = self.meta.factory.create('DeployOptions')
         deploy_options.allowMissingFiles = 'false'
         deploy_options.autoUpdatePackage = 'true'
-        deploy_options.checkOnly = 'false' if checkOnly else 'true'
+        deploy_options.checkOnly = 'true' if checkOnly else 'false'
         deploy_options.ignoreWarnings = 'false'
         deploy_options.performRetrieve = 'false'
         deploy_options.purgeOnDelete = 'false'
         deploy_options.rollbackOnError = 'true'
         deploy_options.runAllTests = 'false'
         deploy_options.singlePackage = 'true'
-        
+
         result = self.meta.service.deploy(zip64, deploy_options)
         countdown = _DEPLOY_TIMEOUT
         while not result.done:

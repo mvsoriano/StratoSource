@@ -35,7 +35,7 @@ def getAgentForBranch(branch, logger = None):
     types = branch.api_assets.split(',')
     svcurl = 'https://' + branch.api_env + '.salesforce.com/services/Soap/u/' + CSBase.CS_SF_API_VERSION #branch.api_ver
 
-    logger.debug("user='%s' path='%s' types=[%s] url='%s'", user, path, ' '.join(types), svcurl)
+#    print("user='%s' path='%s' types=[%s] url='%s'", user, path, ' '.join(types), svcurl)
 
     partner_wsdl = 'file://' + os.path.join(CSBase.CSCONF_DIR, 'partner.wsdl')
     meta_wsdl = 'file://' + os.path.join(CSBase.CSCONF_DIR, 'metadata.wsdl')
