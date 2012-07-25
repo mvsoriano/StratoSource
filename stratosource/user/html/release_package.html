@@ -2,7 +2,7 @@
 {% extends 'layout.html' %}
 
 {% block breadcrumbs %}
-<a href="/">Home</a> -> <a href="/releases">Manage Releases</a> -> <a href="/release/{{ release.id }}">{{ release.name }}</a> -> Create Release Pacakge for {{ release.name }}
+<a href="/">Home</a> -> <a href="/releases">Manage Releases</a> -> <a href="/release/{{ release_package.release.id }}">{{ release_package.release.name }}</a> -> Create Release Pacakge for {{ release_package.release.name }}
 {% endblock %}
 
 {% block jscript %}
@@ -24,37 +24,18 @@
 {% block content %}
 
     <div id="content" class="colMS">
+
         <div id="content-main">
-            <form id="createPackage" name="createPackage" method="POST">{% csrf_token %}
+            <form id="releaseNotes" name="releaseNotes" method="POST">{% csrf_token %}
                 <div class="module">
                     <div class="section">
-                            <span class="section">Create Release Package</span>
+                            <span class="section">Release Package {{release_package.name}}</span>
                             <span class="sectionActions">
-                                <a href="#" onclick="document.forms[0].submit(); return false;">Create Package</a>
+                                <a href="#">Deploy to...</a>
                             </span>
                     </div>
-                </div>
-                <div class="module" style="max-width: 1000px;">
-                    <div>
-                        <table style="font-weight: bold;">
-                            <tr>
-                                <td scope="row" style="text-align:right;">Package Name:</td>
-                                <td>
-                                    <input type="text" size="50" maxlength="200" name="txtName" id="txtName"/>
-                                    <input type="hidden" name="sourceBranchId" id="sourceBranchId" value="{{branch.id}}"/>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td scope="row" style="text-align:right;">Source Environment:</td>
-                                <td>
-                                    {{branch.repo.name|capfirst}} - {{branch.name|capfirst}}
-                                </td>
-                            </tr>
-                        </table>
-                    </div>
-                </div>
-                <div class="module ObjectsList" style="max-width: 1000px;">
-                    {% for object in manifest %}
+                <div class="module ObjectsList">
+                    {% for object in release_package.deployable_objects.all %}
                     {% ifchanged object.type %}
                     {% if not forloop.first %}
                         </table>
@@ -65,7 +46,6 @@
                     <div id="{{ object.type|title }}List">
                         <table>
                             <tr>
-                                <th scope="row" width="60px" class="align_center">Include?</th>
                                 <th>Object Name</th>
                                 <th>Element Type</th>
                                 <th>Element Name</th>
@@ -73,9 +53,6 @@
                             </tr>
                     {% endifchanged %}
                             <tr>
-                                <td class="align_center" width="60px">
-                                    <input name="objId" id="chkObjId" type="checkbox" value="{{object.id}}" checked="checked"/>
-                                </td>
                                 <td>
                                    {% ifchanged object.filename %}<strong><a href="/object/{{object.id}}" target="_blank">{{ object.filename }}</a></strong>{% endifchanged %}
                                 </td>

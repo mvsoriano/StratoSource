@@ -1,5 +1,5 @@
                     {% for release in releases %}
-                        <tr id="{{ branch }}releasesList{{forloop.counter}}">
+                        <tr id="releasesList{{forloop.counter}}">
                             <td scope="row">
                                 <a href="/release/{{release.id}}">
                                   {{ release.name }}
@@ -27,7 +27,7 @@
                             });
                         </script>
                     {% empty %}
-                        <tr id="{{ branch }}releasesListE">
+                        <tr id="releasesListE">
                             <td scope="row" colspan="5" align="center"><strong>No Released Defined</strong></td>
                         </tr>
                     {% endfor %}

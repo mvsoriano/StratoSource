@@ -90,46 +90,72 @@ def home(request):
 
 def create_release_package(request, release_id):
     release = Release.objects.get(id=release_id)
-    data = {'release': release}
+    branches = Branch.objects.all()
+    data = {'release': release,  'branches': branches}
 
     if request.method == u'POST':
         release_package = DeploymentPackage()
-        release_package.release = release                
+        release_package.release = release
+        release_package.name = request.POST.get('txtName')
+        release_package.source_environment = Branch.objects.get(id=request.POST.get('sourceBranchId'))
+        release_package.save()
+        ids = request.POST.getlist('objId')
+        objects = DeployableObject.objects.filter(id__in=ids)
+        for o in objects.all():
+            if o not in release_package.deployable_objects.all():
+                release_package.deployable_objects.add(o)
+        release_package.save()
+        return redirect('/release/' + str(release_package.release.id))
         
     if request.method == u'GET':
-
         manifest = []
+        branch = Branch.objects.get(id=request.GET.get('sourceBranchId'))
         for story in release.stories.all():
-            deployables = DeployableObject.objects.filter(pending_stories=story)
-            dep_objects = DeployableObject.objects.filter(released_stories=story)
+            deployables = DeployableObject.objects.filter(pending_stories=story, branch=branch)
+            dep_objects = DeployableObject.objects.filter(released_stories=story, branch=branch)
             deployables.select_related()
             dep_objects.select_related()
             manifest += list(deployables)
             manifest += list(dep_objects)
 
             manifest.sort(key=lambda object: object.type+object.filename)
-            branches = Branch.objects.all()
     
-            data = {'release': release, 'manifest': manifest, 'branches': branches}
+            data = {'release': release, 'manifest': manifest, 'branches': branches, 'branch': branch}
     
     return render_to_response('release_create_package.html', data, context_instance=RequestContext(request))
+
+def release_package(request, release_package_id):
+    release_package= DeploymentPackage.objects.get(id=release_package_id)
+    data = {'release_package': release_package}
+    return render_to_response('release_package.html', data, context_instance=RequestContext(request))
+
+def delete_release_package(request, release_package_id):
+    release_package= DeploymentPackage.objects.get(id=release_package_id)
+    release_id = release_package.release.id
+    release_package.delete()
+    return redirect('/release/' + str(release_id))
 
 def manifest(request, release_id):
     release = Release.objects.get(id=release_id)
     release.release_notes = release.release_notes.replace('\n','<br/>');
     manifest = []
-    for story in release.stories.all():
-        deployables = DeployableObject.objects.filter(pending_stories=story)
-        dep_objects = DeployableObject.objects.filter(released_stories=story)
-        deployables.select_related()
-        dep_objects.select_related()
-        manifest += list(deployables)
-        manifest += list(dep_objects)
+    branch = Branch()
+    
+    if request.method == u'POST' and request.POST.get('cboFromBranch') != 'none':
+        
+        branch = Branch.objects.get(id=request.POST.get('cboFromBranch'))
+        for story in release.stories.all():
+            deployables = DeployableObject.objects.filter(pending_stories=story, branch=branch)
+            dep_objects = DeployableObject.objects.filter(released_stories=story, branch=branch)
+            deployables.select_related()
+            dep_objects.select_related()
+            manifest += list(deployables)
+            manifest += list(dep_objects)
 
     manifest.sort(key=lambda object: object.type+object.filename)
     branches = Branch.objects.all()
     
-    data = {'release': release, 'manifest': manifest, 'branches': branches}
+    data = {'release': release, 'manifest': manifest, 'branches': branches, 'branch': branch}
     return render_to_response('release_manifest.html', data, context_instance=RequestContext(request))
 
 
@@ -142,6 +168,7 @@ def releases(request):
 def release(request, release_id):
     release = Release.objects.get(id=release_id)
     branches = Branch.objects.all()
+    deployment_packages = DeploymentPackage.objects.filter(release=release)
     
     if request.method == u'GET' and request.GET.__contains__('remove_story_id'):
         story = Story.objects.get(id=request.GET['remove_story_id'])
@@ -152,7 +179,7 @@ def release(request, release_id):
         release.release_notes = request.POST['releaseNotes']
         release.save()  
 
-    data = {'release': release, 'avail_stories': stories, 'branches': branches}
+    data = {'release': release, 'avail_stories': stories, 'branches': branches, 'deployment_packages': deployment_packages}
     return render_to_response('release.html', data, context_instance=RequestContext(request))
 
 def unreleased(request, repo_name, branch_name):

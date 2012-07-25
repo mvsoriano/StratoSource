@@ -31,8 +31,7 @@
                     <div class="section">
                             <span class="section">Release Notes</span>
                             <span class="sectionActions">
-                                <a href="/manifest/{{release.id}}">Show Manifest</a> | 
-                                <a href="/release_create_package/{{release.id}}">Create Release Package</a>
+                                <a href="/manifest/{{release.id}}">Show Manifest</a>
                             </span>
                     </div>
                     <div style="padding: 10px;">
@@ -50,9 +49,9 @@
                                 <tr>
                                     <th style="width:100%;" scope="row">Task</th>
                                     {% for branch in branches %}
-                                    <th class="align_center">Done on:<br/>{{ branch.name|upper }}</th>
+                                    <th class="align_center" style="padding-left: 5px;padding-right: 5px;">Done on:<br/>{{ branch.repo.name|upper }}-{{ branch.name|upper }}</th>
                                     {% endfor %}
-                                    <th>Action</th>
+                                    <th class="align_center">Action</th>
                                 </tr>
                             </thead>
                             <tbody id="taskList">
@@ -69,14 +68,48 @@
                     </div>
                 </div>
             </form>
+            <div class="module">
+                <div class="section">
+                        <span class="section">Deployment Packages</span>
+                        <span class="sectionActions">
+                            <a href="/manifest/{{release.id}}">Create Deployment Package</a>
+                        </span>
+                </div>
+                {% if deployment_packages|length > 0 %}
+                <div style="padding: 10px; max-width: 800px;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th scope="row">Name</th>
+                                <th>Created</th>
+                                <th>Last Deployment</th>
+                                <th>Objects</th>
+                                <th class="align_center">Action</th>
+                            </tr>
+                        </thead>
+                        {% for package in deployment_packages %}
+                        <tr>
+                            <td><a href="/release_package/{{package.id}}" style="display:inline;">{{package.name}}</a></td>
+                            <td>{{package.date_added}}</td>
+                            <td>{{package.last_deploy}}</td>
+                            <td>{{package.deployable_objects.all|length}}</td>
+                            <td class="align_center">
+                                <a href="#" style="display:inline;">Deploy to...</a>
+                                {% if package.last_deploy == null %}
+                                <a href="/delete_release_package/{{package.id}}" style="display:inline;">Delete</a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </table>
+                </div>
+                {% endif %}
+            </div>
             <div class="module ObjectsList">
                 <table>
                     <caption>
                         <span class="section">Stories in {{ release.name }}</span>
                         <span class="sectionActions">
-                            {% if not release.released %}
-                                <a href="#" onclick="markReleased('{{ release.id }}', '{{ release.name|addslashes }}', '{{ branch|addslashes }}', true);">Mark All Released</a> | 
-                            {% endif %}
                             <a href="/stories?releaseid={{release.id}}">Add / Remove Stories</a>
                         </span>
                     </caption>

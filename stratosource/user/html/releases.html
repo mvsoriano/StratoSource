@@ -15,10 +15,9 @@
 
     <div id="content" class="colMS">
         <div id="content-main">
-        {% for branch in branches %}
             <div class="module">
                 <table style="width: 100%;">
-                    <caption><a href="" class="section">{{ branch.name|upper }} Releases</a></caption>
+                    <caption><a href="" class="section">Releases</a></caption>
                     <tr id="{{ branch.name|upper }}headers">
                         <th scope="row">Release Name</th>
                         <th> Released? </th>
@@ -26,21 +25,21 @@
                         <th> Released On </th>
                         <th> Action </th>
                     </tr>
-                    <tr id="{{ branch.name|upper }}releasesList1">
+                    <tr id="releasesList1">
                         <td scope="row" colspan="5">
                            <img src="/csmedia/images/loading_throbber.gif" alt="Loading..."/>
                         </td>
                     </tr>
-                    <tr id="createRelease{{ branch.name|upper }}" style="display:none;">
-                        <td scope="row"><input name="relName{{ branch.name|upper }}" id="relName{{ branch.name|upper }}" type="text"/></td>
+                    <tr id="createRelease" style="display:none;">
+                        <td scope="row"><input name="relName" id="relName" type="text"/></td>
                         <td> - </td>
-                        <td><input name="estRelDate{{ branch.name|upper }}" type="text" id="estRelDate{{ branch.name|upper }}" readonly></td>
+                        <td><input name="estRelDate" type="text" id="estRelDate" readonly></td>
                         <td> - </td>
-                        <td><input type="submit" value="Create" onclick="createRelease('{{ branch.name|upper }}');"> <input type="submit" value="Cancel" onclick="cancelCreate('{{ branch.name|upper }}');"></td>
+                        <td><input type="submit" value="Create" onclick="createRelease('');"> <input type="submit" value="Cancel" onclick="cancelCreate('');"></td>
                     </tr>
-                    <tr id="createReleaseLink{{ branch.name|upper }}">
+                    <tr id="createReleaseLink">
                         <td scope="row" colspan="5">
-                            <a href="#" onclick="newRelease('{{ branch.name|upper }}'); return false;">
+                            <a href="#" onclick="newRelease(''); return false;">
                               Create New
                             </a>
                         </td>
@@ -55,7 +54,6 @@
 
                 refreshReleases('{{ branch.name|upper }}');
             </script>
-        {% endfor %}
         </div>
     </div>
 

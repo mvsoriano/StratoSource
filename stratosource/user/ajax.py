@@ -35,7 +35,6 @@ def createrelease(request):
         try:
             release = Release()
             release.name = request.GET['name']
-            release.branch = Branch.objects.get(name=request.GET['branch'])
             release.est_release_date = request.GET['estRelDate']
             release.save()
             results = {'success':True}
@@ -86,8 +85,8 @@ def markreleased(request):
             release.release_date = datetime.now()
             release.save()
             for story in release.stories.all():
-                story.done_on_branches.add(release.branch)
-                objects = DeployableObject.objects.filter(pending_stories=story, branch=release.branch)
+#                story.done_on_branches.add(release.branch)
+                objects = DeployableObject.objects.filter(pending_stories=story)
                 for object in objects:
                     object.pending_stories.remove(story)
                     object.released_stories.add(story)
@@ -100,7 +99,7 @@ def markreleased(request):
                     if (len(non_releasing_stories) == 0):
                         object.release_status = 'r';
                     object.save()
-                translations = DeployableTranslation.objects.filter(pending_stories=story, branch=release.branch)
+                translations = DeployableTranslation.objects.filter(pending_stories=story)
                 for trans in translations:
                     trans.pending_stories.remove(story)
                     trans.released_stories.add(story)
@@ -122,9 +121,8 @@ def markreleased(request):
 
 def releases(request):
     if request.method == u'GET':
-        branch_name = request.GET['branch']
-        releases = Release.objects.filter(hidden=False, branch__name__exact=branch_name).order_by('released', 'est_release_date', 'release_date', 'name')
-        data = {'releases': releases , 'branch': branch_name}
+        releases = Release.objects.filter(hidden=False).order_by('released', 'est_release_date', 'release_date', 'name')
+        data = {'releases': releases}
 
         return render_to_response('ajax_releases.html', data, context_instance=RequestContext(request) )
 
