@@ -22,9 +22,9 @@ from django.utils.encoding import smart_str
 import re
 from django.template import RequestContext
 from django.shortcuts import render_to_response, redirect
-from stratosource.admin.models import DeploymentPackage, Story, Release, ReleaseTask, DeployableObject, DeployableTranslation, Delta, Branch, ConfigSetting, UserChange, SalesforceUser
+from stratosource.admin.models import DeploymentPushStatus, DeploymentPackage, Story, Release, ReleaseTask, DeployableObject, DeployableTranslation, Delta, Branch, ConfigSetting, UserChange, SalesforceUser
 from stratosource.user import rallyintegration
-from stratosource.admin.management import ConfigCache
+from stratosource.admin.management import ConfigCache, Deployment
 import logging
 
 logger = logging.getLogger('console')
@@ -126,7 +126,10 @@ def create_release_package(request, release_id):
 
 def release_package(request, release_package_id):
     release_package= DeploymentPackage.objects.get(id=release_package_id)
-    data = {'release_package': release_package}
+    
+    release_attempts = DeploymentPushStatus.objects.filter(package = release_package)
+    
+    data = {'release_package': release_package, 'release_attempts': release_attempts}
     return render_to_response('release_package.html', data, context_instance=RequestContext(request))
 
 def delete_release_package(request, release_package_id):
@@ -134,7 +137,36 @@ def delete_release_package(request, release_package_id):
     release_id = release_package.release.id
     release_package.delete()
     return redirect('/release/' + str(release_id))
+    
+def push_release_package(request, release_package_id):
+    release_package= DeploymentPackage.objects.get(id=release_package_id)
 
+    if request.method == u'POST':
+        branch = Branch.objects.get(id=request.POST.get('cboToBranch'))
+    
+        push_package = DeploymentPushStatus()
+        push_package.package = release_package
+        push_package.keep_package = request.POST.get('chkKeepGenerated') == '1'
+        push_package.package_location = '/tmp'
+        push_package.test_only = True
+        push_package.target_environment = branch
+        push_package.save()
+        
+        Deployment.deployPackage(push_package)
+        
+        return redirect('/release_push_status/' + str(push_package.id))
+    
+    branches = Branch.objects.all()
+    data = {'release_package':release_package, 'branches':branches}
+
+    return render_to_response('release_push_package.html', data, context_instance=RequestContext(request))
+
+def release_push_status(request, release_package_push_id):
+    push_package = DeploymentPushStatus.objects.get(id=release_package_push_id)
+    data = {'push_package':push_package}
+
+    return render_to_response('release_push_status.html', data, context_instance=RequestContext(request))
+    
 def manifest(request, release_id):
     release = Release.objects.get(id=release_id)
     release.release_notes = release.release_notes.replace('\n','<br/>');

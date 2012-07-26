@@ -6,17 +6,6 @@
 {% endblock %}
 
 {% block jscript %}
-    <script type="text/javascript">
-        release_id = '{{ release.id }}';
-        $(document).ready(function() {
-            refreshTasks();
-        
-            jQuery("#sortable tbody").sortable({
-                helper: fixHelper,
-                update: updateHelper
-            })
-        });
-    </script>
     <script src="/csmedia/js/cs_release_management1.0.js" type="text/javascript"></script>
     <script src="/csmedia/js/cs_releases1.0.js" type="text/javascript"></script>
 {% endblock %}
@@ -31,9 +20,29 @@
                     <div class="section">
                             <span class="section">Release Package {{release_package.name}}</span>
                             <span class="sectionActions">
-                                <a href="#">Deploy to...</a>
+                                <a href="/release_push_package/{{release_package.id}}">Deploy to...</a>
                             </span>
                     </div>
+                </div>
+                <div class="module ObjectsList" style="max-width: 600px;">
+                    <h3 class="sectionHeader">Release Attempts</h3>
+                    <table>
+                        <tr>
+                            <th>Date</th>
+                            <th>Target Environment</th>
+                            <th>Result</th>
+                            <th>Action</th>
+                        </tr>
+                    {% for ra in release_attempts %}
+                        <tr>
+                            <td>{{ra.date_attempted}}</td>
+                            <td>{{ra.target_environment.repo.name|capfirst}} - {{ra.target_environment.name|capfirst}}</td>
+                            <td>{{ra.result}}</td>
+                            <td><a href="/release_push_status/{{ra.id}}">View</a></td>
+                        </tr>
+                    {% endfor %}
+                    </table>
+                </div>
                 <div class="module ObjectsList">
                     {% for object in release_package.deployable_objects.all %}
                     {% ifchanged object.type %}

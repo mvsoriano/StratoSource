@@ -65,7 +65,7 @@ thead th, th {
     color: white;
 }
 
-tbody tr, tr {
+tbody tr, tr, .whitearea {
     border-bottom-style: solid;
     border-bottom-color: #dddddd;
     border-bottom-width: 2px;

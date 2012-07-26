@@ -154,17 +154,6 @@ class DeployableObject(models.Model):
         if not self.el_name is None: s = s + " - " + self.el_name
         return s 
 
-class DeploymentPushStatus(models.Model):
-    RESULT_TYPES = (('n','New'),('i','In Progress'),('s','Successful'),('f','Failed'))
-
-    date_attempted =     models.DateField(blank=True,null=True)
-    log_output =         models.CharField(max_length=20000)
-    result =             models.CharField(max_length=1, choices=RESULT_TYPES, default='n')
-    test_only =          models.BooleanField(default=True)
-    keep_package =       models.BooleanField(default=False)
-    target_environment = models.ForeignKey(Branch, null=False, related_name='from_deployment_packages')
-    package_location =   models.CharField(max_length=200, null=True)
-
 class DeploymentPackage(models.Model):
     name =               models.CharField(max_length=1000)
     release =            models.ForeignKey(Release, db_index=True)
@@ -172,6 +161,18 @@ class DeploymentPackage(models.Model):
     last_pushed =        models.DateTimeField(null=True)
     source_environment = models.ForeignKey(Branch, null=False, related_name='to_deployment_packages')
     deployable_objects = models.ManyToManyField(DeployableObject,null=True)
+
+class DeploymentPushStatus(models.Model):
+    RESULT_TYPES = (('n','New'),('i','In Progress'),('s','Successful'),('f','Failed'))
+
+    package =            models.ForeignKey(DeploymentPackage)
+    date_attempted =     models.DateField(default=datetime.datetime.now)
+    log_output =         models.CharField(max_length=20000)
+    result =             models.CharField(max_length=1, choices=RESULT_TYPES, default='n')
+    test_only =          models.BooleanField(default=True)
+    keep_package =       models.BooleanField(default=False)
+    target_environment = models.ForeignKey(Branch, null=False, related_name='from_deployment_packages')
+    package_location =   models.CharField(max_length=200, null=True)
 
 class SalesforceUser(models.Model):
     userid      = models.CharField(max_length=20, blank=False, null=False)

@@ -3,7 +3,7 @@
 
 {% block breadcrumbs %}
 <a href="/">Home</a> -> <a href="/releases">Manage Releases</a> -> <a href="/release/{{release.id}}">{{ release.name }}</a> ->
-Manifest for {{release.branch.name|upper}}
+Manifest for "{{release.name|upper}}"
 {% endblock %}
 
 {% block jscript %}
@@ -23,7 +23,12 @@ Manifest for {{release.branch.name|upper}}
 
         <div id="content-main">
             <div class="section">
-                <span class="section">Manifest for {{release.name}}</span>
+                <span class="section">Manifest for "{{release.name}}"</span>
+                <span class="sectionActions">
+                    {% if null != branch.id %}
+                    <a href="/release_create_package/{{release.id}}?sourceBranchId={{branch.id}}">Create Deployment Package</a>
+                    {% endif %}
+                </span>
             </div>
             <br/>
 

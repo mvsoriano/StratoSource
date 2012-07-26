@@ -327,9 +327,11 @@ def deploy(objectList, from_branch, to_branch,  testOnly = False,  retain_packag
 # External entry point
 #
 
-def deployPackage(deployPkg, pkgStatus,  to_branch):
-
-    results = deploy(   deployPkg.deployable_objects,  \
+def deployPackage(pkgStatus):
+    deployPkg = pkgStatus.package
+    to_branch = pkgStatus.target_environment
+    
+    results = deploy(   deployPkg.deployable_objects.all(),  \
                                   deployPkg.source_environment,  \
                                   to_branch,  \
                                   testOnly = pkgStatus.test_only,  \

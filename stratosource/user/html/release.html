@@ -2,7 +2,7 @@
 {% extends 'layout.html' %}
 
 {% block breadcrumbs %}
-<a href="/">Home</a> -> <a href="/releases">Manage Releases</a> -> Release {{ release.name }}
+<a href="/">Home</a> -> <a href="/releases">Manage Releases</a> -> {{ release.name }}
 {% endblock %}
 
 {% block jscript %}
@@ -29,12 +29,14 @@
             <form id="releaseNotes" name="releaseNotes" method="POST">{% csrf_token %}
                 <div class="module">
                     <div class="section">
-                            <span class="section">Release Notes</span>
+                            <span class="section">Release "{{ release.name }}"</span>
                             <span class="sectionActions">
-                                <a href="/manifest/{{release.id}}">Show Manifest</a>
+                                <a href="/manifest/{{release.id}}">Show Manifest</a>&nbsp;&nbsp;|&nbsp;
+                                <a href="/manifest/{{release.id}}">Create Deployment Package</a>
                             </span>
                     </div>
                     <div style="padding: 10px;">
+                        <div style="font-weight:bold">Release Notes</div>
                         <textarea name="releaseNotes" cols="100" rows="5">{{ release.release_notes }}</textarea><br/>
                         <input type="button" onclick="document.getElementById('releaseNotes').submit(); return false;" value="Save Notes"/>
                     </div>
@@ -76,27 +78,34 @@
                         </span>
                 </div>
                 {% if deployment_packages|length > 0 %}
-                <div style="padding: 10px; max-width: 800px;">
+                <div style="padding: 10px; max-width: 1000px;">
                     <table>
                         <thead>
                             <tr>
                                 <th scope="row">Name</th>
-                                <th>Created</th>
+                                <th>Source Environment</th>
                                 <th>Last Deployment</th>
-                                <th>Objects</th>
+                                <th>Objects Included</th>
+                                <th>Created</th>
                                 <th class="align_center">Action</th>
                             </tr>
                         </thead>
                         {% for package in deployment_packages %}
                         <tr>
                             <td><a href="/release_package/{{package.id}}" style="display:inline;">{{package.name}}</a></td>
-                            <td>{{package.date_added}}</td>
-                            <td>{{package.last_deploy}}</td>
-                            <td>{{package.deployable_objects.all|length}}</td>
-                            <td class="align_center">
-                                <a href="#" style="display:inline;">Deploy to...</a>
+                            <td>{{package.source_environment.repo.name|capfirst}} - {{package.source_environment.name|capfirst}}</td>
+                            <td>
+                                {{package.last_deploy}}
                                 {% if package.last_deploy == null %}
-                                <a href="/delete_release_package/{{package.id}}" style="display:inline;">Delete</a>
+                                Not yet
+                                {% endif %}
+                            </td>
+                            <td>{{package.deployable_objects.all|length}}</td>
+                            <td>{{package.date_added}}</td>
+                            <td class="align_center">
+                                <a href="/release_push_package/{{package.id}}" style="display:inline;">Deploy to...</a>
+                                {% if package.last_deploy == null %}
+                                <a href="/release_delete_package/{{package.id}}" style="display:inline;">Delete</a>
                                 {% endif %}
                             </td>
                         </tr>
@@ -108,7 +117,7 @@
             <div class="module ObjectsList">
                 <table>
                     <caption>
-                        <span class="section">Stories in {{ release.name }}</span>
+                        <span class="section">Stories in "{{ release.name }}"</span>
                         <span class="sectionActions">
                             <a href="/stories?releaseid={{release.id}}">Add / Remove Stories</a>
                         </span>

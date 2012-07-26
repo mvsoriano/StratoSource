@@ -6,17 +6,6 @@
 {% endblock %}
 
 {% block jscript %}
-    <script type="text/javascript">
-        release_id = '{{ release.id }}';
-        $(document).ready(function() {
-            refreshTasks();
-        
-            jQuery("#sortable tbody").sortable({
-                helper: fixHelper,
-                update: updateHelper
-            })
-        });
-    </script>
     <script src="/csmedia/js/cs_release_management1.0.js" type="text/javascript"></script>
     <script src="/csmedia/js/cs_releases1.0.js" type="text/javascript"></script>
 {% endblock %}
@@ -40,7 +29,7 @@
                             <tr>
                                 <td scope="row" style="text-align:right;">Package Name:</td>
                                 <td>
-                                    <input type="text" size="50" maxlength="200" name="txtName" id="txtName"/>
+                                    <input type="text" size="50" maxlength="200" name="txtName" id="txtName" value="{{branch.repo.name|capfirst}} - {{branch.name|capfirst}}, {{release.name}} Deployment"/>
                                     <input type="hidden" name="sourceBranchId" id="sourceBranchId" value="{{branch.id}}"/>
                                 </td>
                             </tr>
