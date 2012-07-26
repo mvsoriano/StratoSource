@@ -26,6 +26,8 @@ from stratosource.admin.models import DeploymentPushStatus, DeploymentPackage, S
 from stratosource.user import rallyintegration
 from stratosource.admin.management import ConfigCache, Deployment
 import logging
+import subprocess
+
 
 logger = logging.getLogger('console')
 namestl = {
@@ -151,6 +153,16 @@ def push_release_package(request, release_package_id):
         push_package.test_only = True
         push_package.target_environment = branch
         push_package.save()
+        
+        #
+        # TODO: Fork project off
+        #
+        #pr = subprocess.Popen(os.path.join(settings.ROOT_PATH, 'cronjob.sh') + ' ' + repo_name + ' ' + branch_name + ' >/tmp/ssRun.out 2>&1 &', shell=True)
+        #logger.debug('Started With pid ' + str(pr.pid))
+        #pr.wait()
+        #if pr.returncode == 0:
+        #    push_package.result = 'i'
+        #    push_package.save()
         
         Deployment.deployPackage(push_package)
         
