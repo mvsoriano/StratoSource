@@ -30,14 +30,19 @@
                         <tr>
                             <th>Date</th>
                             <th>Target Environment</th>
-                            <th>Result</th>
+                            <th>Status / Result:</th>
                             <th>Action</th>
                         </tr>
                     {% for ra in release_attempts %}
                         <tr>
                             <td>{{ra.date_attempted}}</td>
                             <td>{{ra.target_environment.repo.name|capfirst}} - {{ra.target_environment.name|capfirst}}</td>
-                            <td>{{ra.result}}</td>
+                            <td>
+                            {% if ra.result == 'n' %}New{% endif %}
+                            {% if ra.result == 'i' %}In Progress{% endif %}
+                            {% if ra.result == 's' %}Successful{% endif %}
+                            {% if ra.result == 'f' %}Failed{% endif %}
+                            </td>
                             <td><a href="/release_push_status/{{ra.id}}">View</a></td>
                         </tr>
                     {% endfor %}

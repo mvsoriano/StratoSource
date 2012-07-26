@@ -34,9 +34,12 @@
                                 </td>
                             </tr>
                             <tr>
-                                <td scope="row" class="label">Result:</td>
+                                <td scope="row" class="label">Status / Result:</td>
                                 <td>
-                                    {{ push_package.result }}
+                                    {% if push_package.result == 'n' %}New{% endif %}
+                                    {% if push_package.result == 'i' %}In Progress{% endif %}
+                                    {% if push_package.result == 's' %}Successful{% endif %}
+                                    {% if push_package.result == 'f' %}Failed{% endif %}
                                 </td>
                             </tr>
                         </table>
