@@ -129,68 +129,37 @@ def get_stories(projectIds):
     urllib2 = connect()
 
     stories = {}
+    querystring = '('
     for projId in projectIds:
-        url = 'https://' + settings.RALLY_SERVER + '/slm/webservice/' + settings.RALLY_REST_VERSION + '/project/' + projId + '.js'
+        if len(querystring) > 1:
+            querystring += ' or '
+        querystring += '(Project = ' + settings.RALLY_SERVER + '/' + settings.RALLY_REST_VERSION + '/project/' + projId + ')'
+    querystring += ')'
+    
+    logger.debug('QueryString is ' + querystring)
+    
+    start = 1
+    pagesize = 200
+    lastPage = False
+    while not(lastPage):
+        url = 'https://' + settings.RALLY_SERVER + '/slm/webservice/' + settings.RALLY_REST_VERSION + '/hierarchicalrequirement.js?query=' + querystring + '&fetch=true&start=' + str(start) + '&pagesize=' + str(pagesize)
+
         logger.debug('Fetching url ' + url)
-        pcprojjson = urllib2.urlopen(url).read()
-        pcproj = json.loads(pcprojjson)
-        logger.debug('Processing project ' + pcproj['Project']['_refObjectName'])
-        pcproj['Project']['Iterations']
+        queryresultjson = urllib2.urlopen(url).read()
+        queryresult = json.loads(queryresultjson)
 
-        sprint_data = {}        
-        sprint_names = {}        
-        sprints = []
+        for result in queryresult['QueryResult']['Results']:
+            story = Story()
+            story.rally_id = result['FormattedID']
+            story.name = result['Name']
+            story.sprint = result['Iteration']['_refObjectName']
+            stories[ral_id] = story
         
-        for iteration in pcproj['Project']['Iterations']:
-            sprdet = urllib2.urlopen(iteration['_ref']).read()
-            sprint = json.loads(sprdet)
-            # 2010-07-12T00:00:00.000Z
-            sprintName = iteration['_refObjectName']
-            startDate = sprint['Iteration']['StartDate'][0:10]
-            logger.debug('Looking at sprint ' + sprintName)
-            logger.debug('Date is ' + startDate)
-            sprint_data[startDate + '_' + sprintName] = sprint
-            sprint_names[startDate + '_' + sprintName] = sprintName
-            sprints.append(startDate + '_' + sprintName)
-            
-        sprints.sort()
-        for sprint_key in sprints:
-            logger.debug('Processing ' + sprint_key)
-            sprint = sprint_data[sprint_key]
-            sprintName = sprint_names[sprint_key]
-            
-            hist = urllib2.urlopen(sprint['Iteration']['RevisionHistory']['_ref']).read()
-            history = json.loads(hist)
-        
-            revisions = list()
-            for rev in history['RevisionHistory']['Revisions']:
-                revisions.append(rev)
-        
-            revisions.reverse()
-            for rev in revisions:
-                if rev['Description'].startswith('Scheduled ') or rev['Description'].startswith('Unscheduled '):
-                    ral_id = rev['Description'].split('[')[1].split(']')[0].partition(':')[0]
-                    ral_name = rev['Description'][rev['Description'].find(':') + 2:150]
-                    if ral_name.endswith(']'):
-                        ral_name = ral_name[0:ral_name.rfind(']')]
-                    if rev['Description'].startswith('Scheduled '):
-                        logger.debug('Add [' + ral_id + '] ' + ral_name)
-                        if ral_id not in stories:
-                            story = Story()
-                            story.rally_id = ral_id
-                            story.name = ral_name
-                            story.sprint = sprintName
-                            stories[ral_id] = story
-                        else:
-                            story = stories[ral_id]
-                            story.sprint = sprintName
-                    if rev['Description'].startswith('Unscheduled '):
-                        logger.debug('Remove [' + ral_id + '] ' + ral_name)
-                        if ral_id in stories:
-                            story = stories[ral_id]
-                            if story.sprint == sprintName:
-                                story.sprint = ''
+        if queryresult['QueryResult']['TotalResultCount'] <= start + pagesize:
+            lastPage = True
 
+        start += pagesize
+    
     return stories
 
 @transaction.commit_on_success    
