@@ -17,6 +17,7 @@
 #    
 import json
 import urllib2
+import urllib
 from stratosource.admin.management import ConfigCache
 from stratosource.admin.models import Story
 from stratosource import settings
@@ -133,18 +134,18 @@ def get_stories(projectIds):
     for projId in projectIds:
         if len(querystring) > 1:
             querystring += ' or '
-        querystring += '(Project = ' + settings.RALLY_SERVER + '/' + settings.RALLY_REST_VERSION + '/project/' + projId + ')'
+        querystring += '(Project = https://' + settings.RALLY_SERVER + '/slm/webservice/' + settings.RALLY_REST_VERSION + '/project/' + projId + ')'
     querystring += ')'
     
-    logger.debug('QueryString is ' + querystring)
+    print 'QueryString is ' + querystring
     
     start = 1
     pagesize = 200
     lastPage = False
     while not(lastPage):
-        url = 'https://' + settings.RALLY_SERVER + '/slm/webservice/' + settings.RALLY_REST_VERSION + '/hierarchicalrequirement.js?query=' + querystring + '&fetch=true&start=' + str(start) + '&pagesize=' + str(pagesize)
+        url = 'https://' + settings.RALLY_SERVER + '/slm/webservice/' + settings.RALLY_REST_VERSION + '/hierarchicalrequirement.js?query=' + urllib.quote(querystring) + '&fetch=true&start=' + str(start) + '&pagesize=' + str(pagesize)
 
-        logger.debug('Fetching url ' + url)
+        print 'Fetching url ' + url
         queryresultjson = urllib2.urlopen(url).read()
         queryresult = json.loads(queryresultjson)
 
@@ -152,9 +153,12 @@ def get_stories(projectIds):
             story = Story()
             story.rally_id = result['FormattedID']
             story.name = result['Name']
-            story.sprint = result['Iteration']['_refObjectName']
-            stories[ral_id] = story
+            if result['Iteration']:
+                story.sprint = result['Iteration']['_refObjectName']
+            stories[story.rally_id] = story
+            print story.rally_id + ' from ' + story.sprint
         
+        print 'results: ' + str(queryresult['QueryResult']['TotalResultCount']) + 'start ' + str(start) + ' for pagesize ' + str(pagesize)
         if queryresult['QueryResult']['TotalResultCount'] <= start + pagesize:
             lastPage = True
 

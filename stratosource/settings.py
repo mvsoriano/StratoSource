@@ -137,7 +137,7 @@ EMAIL_PORT = 25
 #EMAIL_HOST_PASSWORD = ''
 #EMAIL_USE_TLS = ''
 
-RALLY_REST_VERSION = '1.27'
+RALLY_REST_VERSION = '1.36'
 RALLY_SERVER = 'rally1.rallydev.com'
 # If you use community
 #RALLY_SERVER = 'community.rallydev.com'

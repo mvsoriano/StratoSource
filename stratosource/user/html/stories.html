@@ -38,7 +38,7 @@
                             <span><a href="" class="section">Stories</a></span>
                             <span class="sectionActions">
                                 {% if releaseid %}<a href="#" onclick="document.getElementById('storyForm').submit(); return false;">Syncronize Selected Stories to Release</a>{% endif %}
-                                {% if not releaseid and rally_refresh %}<a onclick="alert('This can take a long time depending on how many Sprints / Stories you have.');" href="/stories?refresh=true">Refresh</a>{% endif %}
+                                {% if not releaseid and rally_refresh %}<a href="/stories?refresh=true">Refresh</a>{% endif %}
                             </span>
                         </caption>
                             <tr>
