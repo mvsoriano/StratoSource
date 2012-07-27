@@ -75,6 +75,9 @@ def findXmlNode(doc, object):
     elif object.el_type == 'listViews':
         nodeName = SF_NAMESPACE + 'listViews'
         nameKey = SF_NAMESPACE + 'fullName'
+    elif object.el_type == 'recordTypes':
+        nodeName = SF_NAMESPACE + 'recordTypes'
+        nameKey = SF_NAMESPACE + 'fullName'
     else:
         nodeName = SF_NAMESPACE + 'fields'
         nameKey = SF_NAMESPACE + 'fullName'
@@ -120,21 +123,21 @@ def findXmlSubnode(doc, object):
         logging.getLogger('deploy').info('Unknown object type: ' + object.type)
     return None
 
-#def generateObjectChanges(doc,  cache, object):
-#    if object.status == 'd': return None
-#    doc = etree.XML(cache[object.filename])
-##    print 'looking for %s' % object.el_name
-#    if object.el_name.find(':') >= 0:
-#        # recordType node
-#        xml = findXmlSubnode(doc, object)
-#    else:
-#        xml = findXmlNode(doc, object)
-#
-#    if not xml:
-#        logging.getLogger('deploy').info("Did not find XML node for %s.%s.%s.%s" % (object.filename,object.el_type,object.el_name,object.el_subtype))
-#        return None
-#        
-#    return xml
+def generateObjectChanges(doc,  cache, object):
+    if object.status == 'd': return None
+    doc = etree.XML(cache[object.filename])
+#    print 'looking for %s' % object.el_name
+    if object.el_name.find(':') >= 0:
+        # recordType node
+        xml = findXmlSubnode(doc, object)
+    else:
+        xml = findXmlNode(doc, object)
+
+    if not xml:
+        logging.getLogger('deploy').info("Did not find XML node for %s.%s.%s.%s" % (object.filename,object.el_type,object.el_name,object.el_subtype))
+        return None
+        
+    return xml
 
 
 def getMetaForFile(filename):
@@ -207,11 +210,11 @@ def generatePackage(objectList, from_branch, to_branch,  retain_package,  packag
                     if not objectPkgMap.has_key(object.filename): objectPkgMap[object.filename] = []
                     changes = objectPkgMap[object.filename]
                     registerChange(doc, object, type)
-#                    if object.el_name is None:
-#                        pass
-#                    else:
-#                        fragment = generateObjectChanges(doc, cache, object)
-#                        changes.append(fragment)
+                    if object.el_name is None:
+                        pass
+                    else:
+                        fragment = generateObjectChanges(doc, cache, object)
+                        changes.append(fragment)
         elif type == 'labels':
             for obj in itemlist:
                 if object.status == 'd':
@@ -223,8 +226,10 @@ def generatePackage(objectList, from_branch, to_branch,  retain_package,  packag
                     writeLabelDefinitions(obj.filename, fragment, myzip)
         elif type in ['pages','classes','triggers']:
             writeFileDefinitions(doc, destructive, type, itemlist, cache, myzip)
+        else:
+            logger.warn('Type not supported: %s' % type)
 
-    writeObjectDefinitions(doc,  objectPkgMap, cache, myzip)
+    writeObjectDefinitions(to_branch.repo, doc,  objectPkgMap, cache, myzip)
 
     xml = etree.tostring(doc, xml_declaration=True, encoding='UTF-8', pretty_print=True)
     myzip.writestr('package.xml', xml)
@@ -249,7 +254,9 @@ def registerChange(doc, member, filetype):
     else:
         el_name = member.el_name
         if filetype == 'objects':
-            if el_name.find(':') > 0:
+            if member.el_type == 'recordTypes':
+                filetype = 'recordTypes'
+            elif el_name.find(':') > 0:
                 el_name = el_name.split(':')[0]
                 filetype = 'recordTypes'
             else:
@@ -282,28 +289,32 @@ def writeLabelDefinitions(filename, element, zipfile):
     xml += '</CustomLabels>'
     zipfile.writestr('labels/'+filename, xml)
 
-def writeObjectDefinitions(doc,  objectMap, filecache, zipfile):
+def writeObjectDefinitions(to_repo,  doc,  objectMap, filecache, zipfile):
     logger = logging.getLogger('deploy')
 
     objdeflist = set(objectMap.keys())
     for objdef in objdeflist:
-        object_name = objdef[0:objdef.find('.')]
-        zipfile.writestr('objects/' + objdef,  filecache.get(objdef))
-        el = etree.SubElement(doc, 'types')
-        etree.SubElement(el, 'members').text = object_name
-        etree.SubElement(el, 'name').text = typeMap['objects']
-        logger.info('registering: %s', objdef)
- 
-#    for objectName in objectMap.keys():
-#        elementList = objectMap[objectName]
-#        if len(elementList) == 0:
-#            objectxml = filecache.get(objectName)
-#        else:
-#            objectxml = '<?xml version="1.0" encoding="UTF-8"?>'\
-#                            '<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">'
-#            objectxml += '\n'.join(elementList)
-#            objectxml += '</CustomObject>'
-#        zipfile.writestr('objects/'+objectName, objectxml)
+        path_to_objdef = os.path.join(to_repo.location,  'unpackaged', 'objects', objdef)
+        if not os.path.isfile(path_to_objdef):
+            # Object definition does not exist in destination repo, so assume it's a new object
+            object_name = objdef[0:objdef.find('.')]
+            zipfile.writestr('objects/' + objdef,  filecache.get(objdef))
+            el = etree.SubElement(doc, 'types')
+            etree.SubElement(el, 'members').text = object_name
+            etree.SubElement(el, 'name').text = typeMap['objects']
+            logger.info('registering: %s', objdef)
+        else:
+            # Object exists at destination, just record the changes
+            elementList = objectMap[objdef]
+            #if len(elementList) == 0:
+            #    objectxml = filecache.get(objdef)
+            #else:
+            if elementList is not None:
+                objectxml = '<?xml version="1.0" encoding="UTF-8"?>'\
+                                '<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">'
+                objectxml += '\n'.join(elementList)
+                objectxml += '</CustomObject>'
+                zipfile.writestr('objects/'+objdef, objectxml)
         
 
 

@@ -162,6 +162,7 @@ def compareObjectMaps(lmap, rmap):
     missing = {}
     updates = {}
 
+    print '>>> compareObjectMaps: mapsize=%d' % len(lmap)
     for lname, lnodestring in lmap.items():
         # find the field in the other file
         if rmap.has_key(lname):
@@ -343,7 +344,7 @@ def analyzeObjectChanges(list, lFileCache, rFileCache, elementname, commit):
 
     changesFound = False
     for objectName in list:
-        logger.debug('analyzing %s' % objectName)
+        logger.debug('analyzing %s > %s' % (objectName,  elementname))
         try:
             inserts, updates, deletes = getAllObjectChanges(objectName, lFileCache, rFileCache, elementname, objectChangeResolver)
             if (inserts and len(inserts)) or (updates and len(updates)) or (deletes and len(deletes)):
@@ -501,7 +502,7 @@ def recTypePicklistResolver(ldoc, rdoc, rmap, map, elementName):
     return inserts, updates, missing
 
 
-def analyzeRecordTypeChanges(list, lFileCache, rFileCache, commit):
+def analyzeRecordTypePicklistChanges(list, lFileCache, rFileCache, commit):
     global documentCache
 
     for objectName in list:
@@ -587,7 +588,8 @@ def analyzeCommit(branch, commit):
             analyzeObjectChanges(olist, lFileCache, rFileCache, 'fields', commit)
             analyzeObjectChanges(olist, lFileCache, rFileCache, 'validationRules', commit)
             analyzeObjectChanges(olist, lFileCache, rFileCache, 'webLinks', commit)
-            analyzeRecordTypeChanges(olist, lFileCache, rFileCache, commit)
+            analyzeObjectChanges(olist, lFileCache, rFileCache, 'recordTypes', commit)
+            analyzeRecordTypePicklistChanges(olist, lFileCache, rFileCache, commit)
             analyzeObjectChanges(olist, lFileCache, rFileCache, 'namedFilters', commit)
             analyzeObjectChanges(olist, lFileCache, rFileCache, 'listViews', commit)
             # misc single-node elements
