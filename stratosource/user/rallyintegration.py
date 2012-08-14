@@ -15,15 +15,20 @@
 #    You should have received a copy of the GNU General Public License
 #    along with StratoSource.  If not, see <http://www.gnu.org/licenses/>.
 #    
-import json
-import urllib2
 import urllib
+import requests
 from stratosource.admin.management import ConfigCache
 from stratosource.admin.models import Story
 from stratosource import settings
 from operator import attrgetter
 import logging
 from django.db import transaction
+
+RALLY_REST_HEADERS = \
+    {
+      'User-Agent'                 : 'Pyral Rally WebServices Agent',
+    }
+
 
 logger = logging.getLogger('console')
 
@@ -65,17 +70,16 @@ def leaf_list(pList, llist):
 
     return llist
 
-def load_projects(urllib2, name, projectList):
+def load_projects(session, name, projectList):
     projects = []
     if len(name) > 0:
         name = name + ': '
         
     if len(projectList) > 0:
         for project in projectList:
-            projectDetailJs = urllib2.urlopen(project['_ref']).read()
-            projectDetail = json.loads(projectDetailJs)
+            projectDetail = session.get(project['_ref']).json
 
-            proj = RallyProject(name + projectDetail['Project']['_refObjectName'], projectDetail['Project']['_ref'], load_projects(urllib2, name + projectDetail['Project']['_refObjectName'], projectDetail['Project']['Children']), projectDetail['Project']['Iterations'])
+            proj = RallyProject(name + projectDetail['Project']['_refObjectName'], projectDetail['Project']['_ref'], load_projects(session, name + projectDetail['Project']['_refObjectName'], projectDetail['Project']['Children']), projectDetail['Project']['Iterations'])
             if len(proj.children) > 0 or len(proj.sprints) > 0:
                 projects.append(proj)
 
@@ -92,33 +96,30 @@ def connect():
     rally_user = ConfigCache.get_config_value('rally.login')
     rally_pass = ConfigCache.get_config_value('rally.password')
     
+    credentials = requests.auth.HTTPBasicAuth(rally_user, rally_pass)
+
+    session = requests.session(headers=RALLY_REST_HEADERS, auth=credentials,
+                                    timeout=45.0, proxies={}, config={})    
+    
     logger.debug('Logging in with username ' + rally_user)
 
-    password_manager = urllib2.HTTPPasswordMgrWithDefaultRealm()
-    password_manager.add_password( None, 'https://' + settings.RALLY_SERVER + '/', rally_user, rally_pass )
-    auth_handler = urllib2.HTTPBasicAuthHandler(password_manager)
-    opener = urllib2.build_opener(auth_handler)
-    urllib2.install_opener(opener)
-
-    return urllib2
+    return session
 
 def get_projects(leaves):
     logger.debug('Start getting projects')
-    urllib2 = connect()
+    session = connect()
 
     # Get workspace:
     projects = []
-    wsjs = urllib2.urlopen('https://' + settings.RALLY_SERVER + '/slm/webservice/' + settings.RALLY_REST_VERSION + '/workspace.js').read()
-    workspaces = json.loads(wsjs)
+    workspaces = session.get('https://' + settings.RALLY_SERVER + '/slm/webservice/' + settings.RALLY_REST_VERSION + '/workspace.js').json
 
     logger.debug('Workspaces returned: ' + str(workspaces['QueryResult']['TotalResultCount']))
 
     if workspaces['QueryResult']['TotalResultCount'] > 0:
         for ws in workspaces['QueryResult']['Results']:
             logger.debug('Workspace: ' + ws['_refObjectName'] + ' url "' + ws['_ref'] + '"')
-            wsDetailsJs = urllib2.urlopen(ws['_ref']).read()
-            wsDetails = json.loads(wsDetailsJs)
-            projects.extend(load_projects(urllib2, ws['_refObjectName'], wsDetails['Workspace']['Projects']))
+            wsDetails = session.get(ws['_ref']).json
+            projects.extend(load_projects(session, ws['_refObjectName'], wsDetails['Workspace']['Projects']))
 
     print_proj_tree(projects)
     if leaves:
@@ -127,7 +128,7 @@ def get_projects(leaves):
     return projects
 
 def get_stories(projectIds):
-    urllib2 = connect()
+    session = connect()
 
     stories = {}
     querystring = '('
@@ -146,8 +147,7 @@ def get_stories(projectIds):
         url = 'https://' + settings.RALLY_SERVER + '/slm/webservice/' + settings.RALLY_REST_VERSION + '/hierarchicalrequirement.js?query=' + urllib.quote(querystring) + '&fetch=true&start=' + str(start) + '&pagesize=' + str(pagesize)
 
         print 'Fetching url ' + url
-        queryresultjson = urllib2.urlopen(url).read()
-        queryresult = json.loads(queryresultjson)
+        queryresult = session.get(url).json
 
         for result in queryresult['QueryResult']['Results']:
             story = Story()
@@ -156,9 +156,8 @@ def get_stories(projectIds):
             if result['Iteration']:
                 story.sprint = result['Iteration']['_refObjectName']
             stories[story.rally_id] = story
-            print story.rally_id + ' from ' + story.sprint
         
-        print 'results: ' + str(queryresult['QueryResult']['TotalResultCount']) + 'start ' + str(start) + ' for pagesize ' + str(pagesize)
+        print 'results: ' + str(queryresult['QueryResult']['TotalResultCount']) + ' start ' + str(start) + ' for pagesize ' + str(pagesize)
         if queryresult['QueryResult']['TotalResultCount'] <= start + pagesize:
             lastPage = True
 
