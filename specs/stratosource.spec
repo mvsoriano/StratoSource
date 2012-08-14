@@ -13,6 +13,7 @@ BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root
 
 Requires:       python >= 2.6.4
 Requires:       python-suds >= 0.3.9
+Requires:	python-requests >= 0.13.1
 Requires:       memcached >= 1.4.5
 Requires:       python-memcached >= 1.47
 Requires:       python-lxml >= 2.2.7
