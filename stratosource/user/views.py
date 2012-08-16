@@ -325,12 +325,24 @@ def object(request, object_id):
 def stories(request):
     if request.method == u'POST' and request.POST.__contains__('releaseid'):
         release = Release.objects.get(id=request.POST['releaseid'])
-        release.stories.clear()
         if request.POST.__contains__('storyId'):
             ids = request.POST.getlist('storyId')
+            sprint_name = request.POST['cboSprints']
+            
+            print 'sprint_name ' + sprint_name
+            
+            if sprint_name != '':
+                for story in release.stories.all():
+                    if story.sprint == sprint_name:
+                        print 'removing ' + story.name
+                        release.stories.remove(story)
+            else:
+                release.stories.clear()
+            
             stories = Story.objects.filter(id__in=ids)
             for s in stories.all():
                 if s not in release.stories.all():
+                    print 'adding ' + s.name
                     release.stories.add(s)
         release.save()
         return redirect('/release/' + str(release.id))

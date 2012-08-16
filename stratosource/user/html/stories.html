@@ -20,18 +20,18 @@
     <div id="content" class="colMS">
 
         <div id="content-main">
-            <div>
-                <strong>Filter By Sprint:</strong>
-                <select name="cboSprints" id="cboSprints" onchange="refreshFilter();">
-                    <option value="">-- All Sprints --</option>
-                    {% for sprintName in sprintList %}
-                        <option value="{{ sprintName }}" {% if sprintName == sprint %}selected{% endif %}>{{sprintName}}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <br/>
-            <div class="module ObjectsList">
-                <form id="storyForm" method="post">{% csrf_token %}
+            <form id="storyForm" method="post">{% csrf_token %}
+                <div>
+                    <strong>Filter By Sprint:</strong>
+                    <select name="cboSprints" id="cboSprints" onchange="refreshFilter();">
+                        <option value="">-- All Sprints --</option>
+                        {% for sprintName in sprintList %}
+                            <option value="{{ sprintName }}" {% if sprintName == sprint %}selected{% endif %}>{{sprintName}}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <br/>
+                <div class="module ObjectsList">
                     <input type="hidden" id="releaseid" name="releaseid" value="{{ releaseid }}"/>
                     <table>
                         <caption>
@@ -79,9 +79,9 @@
                             </tr>
                         {% endfor %}
                     </table>
-                </form>
+                </div>
             </div>
-        </div>
+        </form>
         <br class="clear" />
     </div>
 
